@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  visor-backup:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: visor-backup-hermaco
+    ports:
+      - '3001:3001'
+    volumes:
+      # SINTAXIS CRÍTICA EN WINDOWS:
+      # "Ruta_Host_Absoluta:Ruta_Contenedor_Absoluta:ro"
+      # Asegúrate que C:\Dashboard\Backup existe en el servidor
+      - type: bind
+        source: C:\Dashboard\Backup
+        target: C:\backup
+        read_only: true
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # Node.js entiende forward slashes en todas las plataformas
+      - BACKUP_PATH=C:/backup
+    restart: unless-stopped
+
+    # El healthcheck ya está en el Dockerfile, pero si quieres mantenerlo aquí:
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    networks:
+      - visor-network
+
+networks:
+  visor-network:
+    # En Windows Server, el driver por defecto es 'nat'
+    driver: nat
