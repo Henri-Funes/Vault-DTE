@@ -1,37 +1,32 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+  <div class="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 overflow-hidden">
     <!-- Header moderno -->
-    <header class="bg-white shadow-sm border-b border-slate-200">
-      <div class="max-w-7xl mx-auto px-8 py-6">
+    <header class="bg-white shadow-sm border-b border-slate-200 flex-shrink-0">
+      <div class="px-8 py-4">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-4">
             <div
-              class="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center text-white text-2xl shadow-lg"
+              class="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center text-white text-xl shadow-lg"
             >
               📁
             </div>
             <div>
-              <h1 class="text-3xl font-bold text-slate-800">Visor de Backup</h1>
-              <p class="text-sm text-slate-500">Sistema de gestión de archivos</p>
+              <h1 class="text-2xl font-bold text-slate-800">Visor de Backup</h1>
+              <p class="text-xs text-slate-500">Sistema de gestión de archivos</p>
             </div>
           </div>
           <div class="flex items-center gap-3">
-            <div class="text-right mr-4">
+            <div class="text-right">
               <div class="text-sm font-semibold text-slate-700">{{ currentDate }}</div>
               <div class="text-xs text-slate-500">Última actualización: {{ lastUpdate }}</div>
             </div>
-            <button
-              class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors shadow-md"
-            >
-              ⚙️ Configuración
-            </button>
           </div>
         </div>
       </div>
     </header>
 
     <!-- Dashboard principal -->
-    <main class="max-w-7xl mx-auto px-8 py-8">
+    <main class="flex-1 overflow-y-auto px-8 py-6">
       <!-- Navegación por pestañas -->
       <div class="bg-white rounded-xl shadow-md mb-6 p-2 flex gap-2">
         <button
@@ -51,15 +46,15 @@
       </div>
 
       <!-- Contenido dinámico según la pestaña activa -->
-      <div class="transition-all duration-300">
+      <div class="transition-all duration-300 mb-6">
         <Estadisticas v-if="activeTab === 'stats'" />
         <Explorer v-if="activeTab === 'explorer'" />
         <Empaquetador v-if="activeTab === 'packager'" />
       </div>
 
       <!-- Footer informativo -->
-      <div class="mt-8 bg-white rounded-xl shadow-md p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-white rounded-xl shadow-md p-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div class="flex items-center gap-4">
             <div
               class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-green-600 text-2xl"
@@ -73,9 +68,20 @@
           </div>
           <div class="flex items-center gap-4">
             <div
-              class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-2xl"
+              class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-orange-600 text-2xl"
             >
               💾
+            </div>
+            <div>
+              <div class="text-sm font-semibold text-slate-700">Tamaño Total</div>
+              <div class="text-xs text-slate-600">{{ totalSize }}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <div
+              class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-2xl"
+            >
+              🗄️
             </div>
             <div>
               <div class="text-sm font-semibold text-slate-700">Espacio Disponible</div>
@@ -103,17 +109,29 @@
 import Empaquetador from '@/modules/Empaquetador.vue'
 import Estadisticas from '@/modules/Estadisticas.vue'
 import Explorer from '@/modules/Explorer.vue'
+import { getBackupStats } from '@/services/api'
 import { onMounted, ref } from 'vue'
 
 const activeTab = ref('stats')
 const currentDate = ref('')
 const lastUpdate = ref('Hace 5 minutos')
+const totalSize = ref('')
 
 const tabs = [
   { id: 'stats', name: 'Estadísticas', icon: '📊' },
   { id: 'explorer', name: 'Explorador', icon: '📂' },
   { id: 'packager', name: 'Empaquetador', icon: '📦' },
 ]
+
+const loadStats = async () => {
+  try {
+    const data = await getBackupStats()
+    totalSize.value = data.totalSizeFormatted
+  } catch (error) {
+    console.error('Error al cargar estadísticas:', error)
+    totalSize.value = 'N/A'
+  }
+}
 
 onMounted(() => {
   const now = new Date()
@@ -123,6 +141,7 @@ onMounted(() => {
     month: 'long',
     day: 'numeric',
   })
+  loadStats()
 })
 </script>
 
