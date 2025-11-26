@@ -11,10 +11,44 @@ const __dirname = path.dirname(__filename)
 const app = express()
 const PORT = process.env.PORT || 3001
 const NODE_ENV = process.env.NODE_ENV || 'development'
+const IS_ELECTRON = process.env.ELECTRON_APP === 'true'
 
-// Ruta del backup - ajustable según el entorno
-// Usar C:/backup en contenedor, C:\Dashboard\Backup en desarrollo local
-const BACKUP_PATH = process.env.BACKUP_PATH || 'C:/Dashboard/Backup'
+// Función para determinar la ruta del backup
+function getBackupPath() {
+  // 1. Variable de entorno (tiene prioridad)
+  if (process.env.BACKUP_PATH) {
+    return process.env.BACKUP_PATH
+  }
+
+  // 2. Si viene de Electron y hay una carpeta Backup junto al ejecutable
+  if (IS_ELECTRON) {
+    // La ruta será inyectada por Electron
+    const electronBackupPath = path.join(__dirname, '..', '..', 'Backup')
+    return electronBackupPath
+  }
+
+  // 3. Desarrollo: ruta relativa desde el proyecto
+  if (NODE_ENV === 'development') {
+    // Buscar carpeta Backup en el directorio raíz del proyecto o padre
+    const projectRoot = path.join(__dirname, '..')
+    const localBackup = path.join(projectRoot, 'Backup')
+
+    // Si existe localmente, usarla
+    return localBackup
+  }
+
+  // 4. Fallback: ruta hardcodeada original (para compatibilidad)
+  return 'C:/Dashboard/Backup'
+}
+
+// Ruta del backup - ahora dinámica
+const BACKUP_PATH = getBackupPath()
+
+console.log('📂 Configuración de rutas:')
+console.log('   - NODE_ENV:', NODE_ENV)
+console.log('   - IS_ELECTRON:', IS_ELECTRON)
+console.log('   - BACKUP_PATH:', BACKUP_PATH)
+console.log('   - __dirname:', __dirname)
 
 // Sistema de caché
 let cache = {
@@ -580,17 +614,42 @@ app.post('/api/cache/reload', async (req, res) => {
 })
 
 // Ruta catch-all para SPA (debe estar al final, después de todas las rutas API)
-if (NODE_ENV === 'production') {
+if (NODE_ENV === 'production' || IS_ELECTRON) {
   app.use((req, res) => {
     const indexPath = path.join(__dirname, '..', 'dist', 'index.html')
     res.sendFile(indexPath)
   })
 }
 
+// Endpoint adicional para diagnóstico
+app.get('/api/system/info', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      nodeEnv: NODE_ENV,
+      isElectron: IS_ELECTRON,
+      backupPath: BACKUP_PATH,
+      serverDir: __dirname,
+      platform: process.platform,
+      cwd: process.cwd(),
+    },
+  })
+})
+
 app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`)
   console.log(`🌍 Environment: ${NODE_ENV}`)
   console.log(`📁 Backup path: ${BACKUP_PATH}`)
+
+  // Verificar si la ruta existe
+  try {
+    await fs.access(BACKUP_PATH)
+    console.log('✅ Ruta de backup accesible')
+  } catch (error) {
+    console.warn('⚠️  ADVERTENCIA: La ruta de backup no existe o no es accesible')
+    console.warn('   Asegúrate de que la carpeta "Backup" esté junto al ejecutable')
+  }
+
   console.log('⏳ Precargando datos en caché...')
 
   // Precargar datos al iniciar

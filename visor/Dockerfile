@@ -1,17 +1,26 @@
 # ---------------------------------------
 # Etapa 1: Build del frontend Vue
 # ---------------------------------------
-# Usar ltsc2019 para compatibilidad con Windows Server 2019
-FROM node:20-nanoserver-ltsc2019 AS frontend-build
+# Usar imagen base de Windows y instalar Node.js manualmente
+FROM mcr.microsoft.com/windows/nanoserver:1809 AS frontend-build
 
-# En Windows usamos backslashes
+# Descargar e instalar Node.js 18
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+RUN Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.20.4/node-v18.20.4-win-x64.zip' -OutFile 'node.zip'; \
+    Expand-Archive node.zip -DestinationPath C:\; \
+    Rename-Item -Path C:\node-v18.20.4-win-x64 -NewName nodejs; \
+    Remove-Item -Force node.zip
+
+# Agregar Node.js al PATH
+ENV PATH="C:\nodejs;${PATH}"
+
 WORKDIR C:\app\frontend
 
 # Copiar archivos de dependencias
 COPY package*.json ./
 
 # Instalar dependencias
-# Nota: Si se queja de fsevents (opcional en linux), no pasa nada en Windows
 RUN npm ci
 
 # Copiar código fuente
@@ -23,8 +32,18 @@ RUN npm run build
 # ---------------------------------------
 # Etapa 2: Servidor final con Node.js
 # ---------------------------------------
-# Usar ltsc2019 para compatibilidad con Windows Server 2019
-FROM node:20-nanoserver-ltsc2019
+FROM mcr.microsoft.com/windows/nanoserver:1809
+
+# Descargar e instalar Node.js 18
+SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
+
+RUN Invoke-WebRequest -Uri 'https://nodejs.org/dist/v18.20.4/node-v18.20.4-win-x64.zip' -OutFile 'node.zip'; \
+    Expand-Archive node.zip -DestinationPath C:\; \
+    Rename-Item -Path C:\node-v18.20.4-win-x64 -NewName nodejs; \
+    Remove-Item -Force node.zip
+
+# Agregar Node.js al PATH
+ENV PATH="C:\nodejs;${PATH}"
 
 WORKDIR C:\app
 
