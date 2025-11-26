@@ -1,12 +1,36 @@
-# Visor de Backup - Hermaco
+# 📊 Visor de Backups Hermaco
 
-Visor sencillo para explorar archivos de backup almacenados en el servidor.
+Aplicación para visualizar y gestionar backups de facturas con soporte para:
 
-## 🚀 Servidor de Desarrollo
+- Explorador de archivos
+- Estadísticas en tiempo real
+- Empaquetador de facturas
+- **Versión portable para Windows** ⭐
 
-**Vue usa Vite como servidor de desarrollo por defecto** - es extremadamente rápido y tiene HMR (Hot Module Replacement).
+---
 
-### Iniciar el proyecto completo (Frontend + Backend):
+## 🚀 Inicio Rápido
+
+### ⭐ Versión Portable (Recomendado para producción)
+
+```powershell
+# 1. Instalar dependencias
+npm install
+
+# 2. Compilar portable
+.\build-portable.ps1
+
+# 3. El .exe estará en dist-electron/
+# Copiar junto con la carpeta Backup al disco compartido
+```
+
+**Ver [PORTABLE-QUICKSTART.md](PORTABLE-QUICKSTART.md) para instrucciones de uso.**
+
+---
+
+## 🛠️ Desarrollo
+
+### Modo Desarrollo Web (sin Electron)
 
 ```sh
 npm run dev:all
@@ -15,12 +39,65 @@ npm run dev:all
 - **Frontend**: `http://localhost:5173`
 - **Backend API**: `http://localhost:3001`
 
+### Modo Desarrollo con Electron
+
+```powershell
+.\dev-electron.ps1
+# o
+npm run electron:dev
+```
+
+Abre una ventana de Electron con DevTools y hot-reload.
+
 ### Comandos individuales:
 
 ```sh
-npm run dev          # Solo frontend
-npm run dev:server   # Solo backend
+npm run dev          # Solo frontend (Vite)
+npm run dev:server   # Solo backend (Express)
 ```
+
+---
+
+## 📦 Portable para Producción
+
+### Estructura Requerida
+
+```
+DiscoCompartido/
+├── Visor Hermaco-1.0.0-Portable.exe    ← Ejecutable
+└── Backup/                              ← Datos (IMPORTANTE)
+    ├── SA/
+    ├── SM/
+    ├── SS/
+    ├── gastos/
+    └── remisiones/
+```
+
+**⚠️ La carpeta `Backup` DEBE estar junto al .exe**
+
+### Compilar Portable
+
+```powershell
+# Método 1: Script automático
+.\build-portable.ps1
+
+# Método 2: Manual
+npm run build
+npm run electron:build
+```
+
+### Uso en Red
+
+```
+\\servidor\compartido\VisorHermaco\
+├── Visor Hermaco-1.0.0-Portable.exe
+└── Backup\
+
+# Ejecutar desde cualquier PC:
+\\servidor\compartido\VisorHermaco\Visor Hermaco-1.0.0-Portable.exe
+```
+
+---
 
 ## 🎨 Stack Tecnológico
 
@@ -39,6 +116,14 @@ npm run dev:server   # Solo backend
 - **CORS** - Comunicación frontend-backend
 - **Archiver** - Generación de archivos ZIP
 - **Sistema de Caché** - Caché inteligente de 5 minutos para alto rendimiento
+
+### Desktop:
+
+- **Electron** - App de escritorio multiplataforma
+- **electron-builder** - Empaquetado portable
+- **Sistema de rutas dinámicas** - Detecta ubicación automáticamente
+
+---
 
 ## 📁 Estructura del Proyecto
 
