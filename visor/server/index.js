@@ -632,15 +632,20 @@ app.get('/api/system/info', (req, res) => {
 
 // Ruta catch-all para SPA (debe estar al final, después de todas las rutas API)
 if (NODE_ENV === 'production' || IS_ELECTRON) {
-  app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, '..', 'dist', 'index.html')
-    console.log(`📄 Sirviendo: ${req.url} -> ${indexPath}`)
-    res.sendFile(indexPath, (err) => {
-      if (err) {
-        console.error(`❌ Error sirviendo ${req.url}:`, err.message)
-        res.status(500).send('Error al cargar la aplicación')
-      }
-    })
+  app.use((req, res) => {
+    // Solo servir index.html si no es una ruta de API
+    if (!req.url.startsWith('/api')) {
+      const indexPath = path.join(__dirname, '..', 'dist', 'index.html')
+      console.log(`📄 Sirviendo: ${req.url} -> index.html`)
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          console.error(`❌ Error sirviendo ${req.url}:`, err.message)
+          res.status(500).send('Error al cargar la aplicacion')
+        }
+      })
+    } else {
+      res.status(404).json({ success: false, error: 'Endpoint no encontrado' })
+    }
   })
 }
 
