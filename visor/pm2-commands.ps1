@@ -1,4 +1,4 @@
-# Comandos rápidos de PM2 para gestionar la aplicación
+# Comandos rapidos de PM2 para gestionar la aplicacion
 # Ejecutar desde la carpeta del proyecto
 
 param(
@@ -16,40 +16,40 @@ Write-Host ""
 
 switch ($Action) {
     'start' {
-        Write-Host "🚀 Iniciando aplicación..." -ForegroundColor Green
+        Write-Host "[INICIO] Iniciando aplicacion..." -ForegroundColor Green
         pm2 start ecosystem.config.cjs
         pm2 save
     }
     'stop' {
-        Write-Host "🛑 Deteniendo aplicación..." -ForegroundColor Yellow
+        Write-Host "[STOP] Deteniendo aplicacion..." -ForegroundColor Yellow
         pm2 stop $AppName
     }
     'restart' {
-        Write-Host "🔄 Reiniciando aplicación..." -ForegroundColor Yellow
+        Write-Host "[RESTART] Reiniciando aplicacion..." -ForegroundColor Yellow
         pm2 restart $AppName
     }
     'status' {
-        Write-Host "📊 Estado de la aplicación:" -ForegroundColor Cyan
+        Write-Host "[STATUS] Estado de la aplicacion:" -ForegroundColor Cyan
         pm2 list
         Write-Host ""
-        Write-Host "📋 Detalles:" -ForegroundColor Cyan
+        Write-Host "[DETALLES]:" -ForegroundColor Cyan
         pm2 describe $AppName
     }
     'logs' {
-        Write-Host "📄 Mostrando logs (Ctrl+C para salir)..." -ForegroundColor Cyan
+        Write-Host "[LOGS] Mostrando logs (Ctrl+C para salir)..." -ForegroundColor Cyan
         pm2 logs $AppName
     }
     'monit' {
-        Write-Host "📊 Monitor en tiempo real (Ctrl+C para salir)..." -ForegroundColor Cyan
+        Write-Host "[MONITOR] Monitor en tiempo real (Ctrl+C para salir)..." -ForegroundColor Cyan
         pm2 monit
     }
     'delete' {
-        Write-Host "🗑️  Eliminando aplicación de PM2..." -ForegroundColor Red
+        Write-Host "[DELETE] Eliminando aplicacion de PM2..." -ForegroundColor Red
         pm2 delete $AppName
         pm2 save
     }
     'save' {
-        Write-Host "💾 Guardando configuración..." -ForegroundColor Green
+        Write-Host "[SAVE] Guardando configuracion..." -ForegroundColor Green
         pm2 save
     }
 }
