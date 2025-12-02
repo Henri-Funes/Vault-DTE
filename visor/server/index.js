@@ -37,8 +37,8 @@ function getBackupPath() {
     return localBackup
   }
 
-  // 4. Fallback: ruta hardcodeada original (para compatibilidad)
-  return 'C:/Dashboard/Backup'
+  // 4. Fallback: ruta hardcodeada para el servidor de producción
+  return 'C:/zeta2/Henri/Copia de seguridad de facturas(No borrar)/Backup'
 }
 
 // Ruta del backup - ahora dinámica
