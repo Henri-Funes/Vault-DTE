@@ -1,10 +1,11 @@
-// Configuración de PM2 para Windows Server
+// Configuracion de PM2 para Windows Server
 module.exports = {
   apps: [
     {
       name: 'visor-backup',
       script: './server/index.js',
       cwd: __dirname, // Directorio actual del proyecto
+      exec_mode: 'fork', // Modo fork (no cluster) para servir archivos estaticos
       instances: 1,
       autorestart: true,
       watch: false,
