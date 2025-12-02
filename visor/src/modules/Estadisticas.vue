@@ -10,6 +10,45 @@
       </button>
     </div>
 
+    <!-- Filtro de fechas -->
+    <div class="mb-6 bg-slate-50 rounded-lg p-4 border border-slate-200">
+      <div class="flex items-center gap-4 flex-wrap">
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-slate-800">📅 Desde:</label>
+          <input
+            v-model="dateFrom"
+            type="date"
+            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-slate-800">📅 Hasta:</label>
+          <input
+            v-model="dateTo"
+            type="date"
+            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
+          />
+        </div>
+        <button
+          @click="applyDateFilter"
+          :disabled="!dateFrom && !dateTo"
+          class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
+        >
+          🔍 Filtrar
+        </button>
+        <button
+          v-if="dateFrom || dateTo"
+          @click="clearDateFilter"
+          class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+        >
+          ✕ Limpiar
+        </button>
+        <span v-if="dateFrom || dateTo" class="text-sm text-blue-600 font-medium">
+          📌 Filtro activo
+        </span>
+      </div>
+    </div>
+
     <!-- Estado de carga -->
     <div v-if="loading" class="text-center py-12">
       <div class="text-4xl mb-4">⏳</div>
@@ -71,7 +110,7 @@
       </div>
 
       <!-- Paneles por Ubicación -->
-      <div class="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div class="mt-6 grid grid-cols-2 md:grid-cols-6 gap-4">
         <!-- H1 - Santa Ana (SA) -->
         <div
           class="bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 rounded-lg border border-cyan-200"
@@ -116,6 +155,17 @@
           <div class="text-2xl font-bold text-pink-700">{{ stats.pairedByFolder.remisiones }}</div>
           <div class="text-sm text-pink-600">Remisiones</div>
         </div>
+
+        <!-- Notas de Crédito -->
+        <div
+          class="bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 rounded-lg border border-indigo-200"
+        >
+          <div class="text-indigo-600 text-3xl mb-2">📝</div>
+          <div class="text-2xl font-bold text-indigo-700">
+            {{ stats.pairedByFolder.notas_de_credito }}
+          </div>
+          <div class="text-sm text-indigo-600">Notas de Crédito</div>
+        </div>
       </div>
 
       <!-- Gráfico simple de barras -->
@@ -147,6 +197,8 @@ import { computed, onMounted, ref } from 'vue'
 
 const loading = ref(true)
 const error = ref<string | null>(null)
+const dateFrom = ref('')
+const dateTo = ref('')
 
 // Datos de estadísticas
 const stats = ref({
@@ -165,6 +217,7 @@ const stats = ref({
     SS: 0,
     gastos: 0,
     remisiones: 0,
+    notas_de_credito: 0,
   },
 })
 
@@ -174,7 +227,7 @@ async function loadStats() {
   error.value = null
 
   try {
-    const data = await getBackupStats()
+    const data = await getBackupStats(dateFrom.value || undefined, dateTo.value || undefined)
     stats.value = {
       pdf: data.pdf,
       json: data.json,
@@ -193,6 +246,18 @@ async function loadStats() {
   } finally {
     loading.value = false
   }
+}
+
+// Aplicar filtro de fechas
+function applyDateFilter() {
+  loadStats()
+}
+
+// Limpiar filtro de fechas
+function clearDateFilter() {
+  dateFrom.value = ''
+  dateTo.value = ''
+  loadStats()
 }
 
 const chartData = computed(() => {

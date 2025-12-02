@@ -11,6 +11,7 @@ export interface FileInfo {
   isDirectory: boolean
   modifiedDate: string
   createdDate: string
+  emissionDate?: string | null // Fecha de emisión desde el JSON
 }
 
 export interface FolderInfo {
@@ -47,6 +48,7 @@ export interface Stats {
     SS: number
     gastos: number
     remisiones: number
+    notas_de_credito: number
   }
   byFolder: Record<
     string,
@@ -64,14 +66,21 @@ export interface Stats {
 // Función helper para hacer peticiones
 async function fetchAPI<T>(endpoint: string): Promise<T> {
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`)
-    const data = await response.json()
+    const url = `${API_BASE_URL}${endpoint}`
+    const response = await fetch(url)
 
-    if (!data.success) {
-      throw new Error(data.error || 'Error en la petición')
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    return data.data
+    const data = await response.json()
+
+    // Algunos endpoints devuelven { success, data }, otros devuelven directamente
+    if (data.success !== undefined && data.data !== undefined) {
+      return data.data
+    }
+
+    return data
   } catch (error) {
     console.error(`Error fetching ${endpoint}:`, error)
     throw error
@@ -93,9 +102,19 @@ export async function getFolderFiles(folderName: string): Promise<{
   return fetchAPI(`/backup/folder/${folderName}`)
 }
 
-// Obtener estadísticas
-export async function getBackupStats(): Promise<Stats> {
-  return fetchAPI<Stats>('/backup/stats')
+// Obtener estadísticas (con filtro de fechas opcional)
+export async function getBackupStats(dateFrom?: string, dateTo?: string): Promise<Stats> {
+  let endpoint = '/backup/stats'
+  const params = new URLSearchParams()
+
+  if (dateFrom) params.append('dateFrom', dateFrom)
+  if (dateTo) params.append('dateTo', dateTo)
+
+  if (params.toString()) {
+    endpoint += `?${params.toString()}`
+  }
+
+  return fetchAPI<Stats>(endpoint)
 }
 
 // Health check del servidor

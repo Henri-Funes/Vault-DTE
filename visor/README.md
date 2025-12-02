@@ -6,10 +6,29 @@ Aplicación para visualizar y gestionar backups de facturas con soporte para:
 - Estadísticas en tiempo real
 - Empaquetador de facturas
 - **Versión portable para Windows** ⭐
+- **Detección automática de rutas de red** 🌐
 
 ---
 
 ## 🚀 Inicio Rápido
+
+### ⚙️ Configuración Inicial (Nuevo)
+
+Antes de ejecutar la aplicación, configura la ruta de backup:
+
+```powershell
+# Ejecutar script de configuración interactivo
+.\configure.ps1
+```
+
+O manualmente, copia y edita el archivo `.env`:
+
+```powershell
+Copy-Item .env.example .env
+# Edita .env con tu ruta de red
+```
+
+**Ver [CONFIGURACION-RED.md](CONFIGURACION-RED.md) para más detalles.**
 
 ### ⭐ Versión Portable (Recomendado para producción)
 
@@ -17,11 +36,14 @@ Aplicación para visualizar y gestionar backups de facturas con soporte para:
 # 1. Instalar dependencias
 npm install
 
-# 2. Compilar portable
+# 2. Configurar ruta de red
+.\configure.ps1
+
+# 3. Compilar portable
 .\build-portable.ps1
 
-# 3. El .exe estará en dist-electron/
-# Copiar junto con la carpeta Backup al disco compartido
+# 4. El .exe estará en dist-electron/
+# Incluir el archivo .env con el ejecutable
 ```
 
 **Ver [PORTABLE-QUICKSTART.md](PORTABLE-QUICKSTART.md) para instrucciones de uso.**
