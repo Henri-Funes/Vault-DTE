@@ -37,6 +37,45 @@
       </div>
     </div>
 
+    <!-- Filtro de fechas -->
+    <div class="mb-4 bg-slate-50 rounded-lg p-4 border border-slate-200">
+      <div class="flex items-center gap-4 flex-wrap">
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-slate-800">📅 Desde:</label>
+          <input
+            v-model="dateFrom"
+            type="date"
+            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
+          />
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-slate-800">📅 Hasta:</label>
+          <input
+            v-model="dateTo"
+            type="date"
+            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
+          />
+        </div>
+        <button
+          @click="applyDateFilter"
+          :disabled="!dateFrom && !dateTo"
+          class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
+        >
+          🔍 Filtrar
+        </button>
+        <button
+          v-if="dateFrom || dateTo"
+          @click="clearDateFilter"
+          class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
+        >
+          ✕ Limpiar
+        </button>
+        <span v-if="dateFrom || dateTo" class="text-sm text-blue-600 font-medium">
+          📌 Filtro activo: {{ filteredFiles.length }} archivos
+        </span>
+      </div>
+    </div>
+
     <!-- Breadcrumb de navegación -->
     <div class="flex items-center gap-2 mb-4 text-sm text-slate-600">
       <span class="cursor-pointer hover:text-blue-600">🏠 Backup</span>
@@ -135,8 +174,10 @@ const folders = ref<FolderInfo[]>([])
 const allFiles = ref<FileInfo[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const dateFrom = ref('')
+const dateTo = ref('')
 
-// Archivos filtrados por búsqueda y carpeta seleccionada
+// Archivos filtrados por búsqueda, carpeta seleccionada y fechas de emisión
 const filteredFiles = computed(() => {
   let files = allFiles.value
 
@@ -145,6 +186,45 @@ const filteredFiles = computed(() => {
     files = files.filter((file) =>
       file.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
     )
+  }
+
+  // Filtrar por rango de fechas de EMISIÓN
+  if (dateFrom.value || dateTo.value) {
+    const fromTime = dateFrom.value ? new Date(dateFrom.value).getTime() : 0
+    const toTime = dateTo.value ? new Date(dateTo.value).setHours(23, 59, 59, 999) : Infinity
+
+    // Crear un Set con los nombres base de los archivos JSON que cumplen el filtro
+    const validJsonBaseNames = new Set<string>()
+
+    // Primero, filtrar JSONs por fecha de emisión
+    files.forEach((file) => {
+      if (file.extension === '.json' && file.emissionDate) {
+        const emissionTime = new Date(file.emissionDate).getTime()
+        if (emissionTime >= fromTime && emissionTime <= toTime) {
+          // Guardar el nombre base sin extensión
+          const baseName = file.name.replace(/\.json$/i, '')
+          validJsonBaseNames.add(baseName)
+        }
+      }
+    })
+
+    // Filtrar archivos: incluir JSONs válidos y sus PDFs parejas
+    files = files.filter((file) => {
+      const baseName = file.name.replace(/\.(json|pdf)$/i, '')
+
+      // Si es JSON, verificar si está en el Set de válidos
+      if (file.extension === '.json') {
+        return validJsonBaseNames.has(baseName)
+      }
+
+      // Si es PDF, verificar si su JSON pareja está en el Set
+      if (file.extension === '.pdf') {
+        return validJsonBaseNames.has(baseName)
+      }
+
+      // Otros tipos de archivo no se filtran por fecha de emisión
+      return false
+    })
   }
 
   return files
@@ -191,6 +271,18 @@ watch(selectedFolder, () => {
   loadFolderFiles()
 })
 
+// Aplicar filtro de fechas
+function applyDateFilter() {
+  // El filtro se aplica automáticamente a través del computed
+  console.log('Filtro de fechas aplicado:', { dateFrom: dateFrom.value, dateTo: dateTo.value })
+}
+
+// Limpiar filtro de fechas
+function clearDateFilter() {
+  dateFrom.value = ''
+  dateTo.value = ''
+}
+
 const getFileIcon = (type: string) => {
   const icons: Record<string, string> = {
     pdf: '📄',
@@ -231,42 +323,116 @@ const openFile = async (file: FileInfo) => {
   console.log('Abriendo archivo:', file)
 
   try {
-    const extension = file.extension.toLowerCase()
+    // Normalizar extensión: quitar punto y convertir a minúsculas
+    const extension = file.extension.toLowerCase().replace(/^\./, '')
 
-    if (extension === 'pdf') {
-      // Abrir PDF en el navegador
-      const response = await fetch(`/api/backup/open-pdf`, {
+    console.log('Extension detectada:', extension)
+
+    // Verificar si es un tipo de archivo soportado
+    if (['pdf', 'json', 'xml', 'txt'].includes(extension)) {
+      // Llamar al backend para obtener el archivo
+      const response = await fetch('/api/backup/open-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filePath: file.path }),
       })
 
-      if (response.ok) {
+      if (!response.ok) {
+        throw new Error('Error al cargar el archivo')
+      }
+
+      if (extension === 'pdf') {
+        // Abrir PDF en nueva pestaña
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         window.open(url, '_blank')
-      } else {
-        alert('Error al abrir el PDF')
-      }
-    } else if (extension === 'json') {
-      // Abrir JSON en bloc de notas
-      const response = await fetch(`/api/backup/open-notepad`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: file.path }),
-      })
 
-      if (response.ok) {
-        alert('Archivo abierto en Bloc de Notas')
-      } else {
-        alert('Error al abrir el archivo en Bloc de Notas')
+        // Liberar el objeto URL después de un tiempo
+        setTimeout(() => window.URL.revokeObjectURL(url), 100)
+      } else if (extension === 'json') {
+        // Mostrar JSON formateado en nueva ventana
+        const jsonData = await response.json()
+        const newWindow = window.open('', '_blank')
+        if (newWindow) {
+          newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${file.name}</title>
+              <style>
+                body {
+                  font-family: 'Courier New', monospace;
+                  padding: 20px;
+                  background-color: #1e1e1e;
+                  color: #d4d4d4;
+                }
+                pre {
+                  background-color: #252526;
+                  padding: 20px;
+                  border-radius: 8px;
+                  overflow-x: auto;
+                  line-height: 1.5;
+                }
+                .json-key { color: #9cdcfe; }
+                .json-string { color: #ce9178; }
+                .json-number { color: #b5cea8; }
+                .json-boolean { color: #569cd6; }
+                .json-null { color: #569cd6; }
+              </style>
+            </head>
+            <body>
+              <h2>${file.name}</h2>
+              <pre>${JSON.stringify(jsonData, null, 2)}</pre>
+            </body>
+            </html>
+          `)
+          newWindow.document.close()
+        }
+      } else if (extension === 'xml' || extension === 'txt') {
+        // Mostrar texto/XML en nueva ventana
+        const textContent = await response.text()
+        const newWindow = window.open('', '_blank')
+        if (newWindow) {
+          newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${file.name}</title>
+              <style>
+                body {
+                  font-family: 'Courier New', monospace;
+                  padding: 20px;
+                  background-color: #ffffff;
+                  color: #000000;
+                }
+                pre {
+                  background-color: #f5f5f5;
+                  padding: 20px;
+                  border-radius: 8px;
+                  overflow-x: auto;
+                  line-height: 1.5;
+                  white-space: pre-wrap;
+                  word-wrap: break-word;
+                }
+              </style>
+            </head>
+            <body>
+              <h2>${file.name}</h2>
+              <pre>${textContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+            </body>
+            </html>
+          `)
+          newWindow.document.close()
+        }
       }
     } else {
-      alert(`Tipo de archivo no soportado: ${extension}`)
+      alert(
+        `Tipo de archivo no soportado: .${extension}\n\nSolo se pueden abrir: PDF, JSON, XML, TXT`,
+      )
     }
   } catch (error) {
     console.error('Error abriendo archivo:', error)
-    alert('Error al abrir el archivo')
+    alert('Error al abrir el archivo. Verifica que el archivo existe.')
   }
 }
 

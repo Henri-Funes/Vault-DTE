@@ -127,9 +127,15 @@ const loadStats = async () => {
   try {
     const data = await getBackupStats()
     totalSize.value = data.totalSizeFormatted
+
+    // Notificar que los datos están cargados para ocultar pantalla de carga
+    window.dispatchEvent(new Event('app-data-loaded'))
   } catch (error) {
     console.error('Error al cargar estadísticas:', error)
     totalSize.value = 'N/A'
+
+    // Ocultar pantalla de carga incluso si hay error
+    window.dispatchEvent(new Event('app-data-loaded'))
   }
 }
 

@@ -27,8 +27,8 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "Paso 2: Empaquetando con Electron..." -ForegroundColor Green
 
-# Usar target 'dir' que no requiere firma
-npx electron-builder --win dir
+# Generar portable (requiere PowerShell como Admin)
+npx electron-builder --win portable
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR al empaquetar con Electron" -ForegroundColor Red
