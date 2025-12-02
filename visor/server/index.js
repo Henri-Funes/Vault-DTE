@@ -2,6 +2,7 @@ import archiver from 'archiver'
 import cors from 'cors'
 import express from 'express'
 import fs from 'fs/promises'
+import { networkInterfaces } from 'os'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -10,6 +11,7 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3001
+const HOST = process.env.HOST || '0.0.0.0' // 0.0.0.0 permite conexiones externas
 const NODE_ENV = process.env.NODE_ENV || 'development'
 const IS_ELECTRON = process.env.ELECTRON_APP === 'true'
 
@@ -636,10 +638,24 @@ app.get('/api/system/info', (req, res) => {
   })
 })
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
+app.listen(PORT, HOST, async () => {
+  console.log(`🚀 Server running on http://${HOST}:${PORT}`)
+  console.log(`🌐 Accesible desde: http://localhost:${PORT}`)
   console.log(`🌍 Environment: ${NODE_ENV}`)
   console.log(`📁 Backup path: ${BACKUP_PATH}`)
+
+  // Mostrar todas las IPs disponibles
+  console.log('\n📡 Accesible desde las siguientes IPs:')
+  const nets = networkInterfaces()
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      // Solo IPv4 y no loopback
+      if (net.family === 'IPv4' && !net.internal) {
+        console.log(`   - http://${net.address}:${PORT} (${name})`)
+      }
+    }
+  }
+  console.log('')
 
   // Verificar si la ruta existe
   try {
