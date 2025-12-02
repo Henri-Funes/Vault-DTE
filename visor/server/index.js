@@ -73,9 +73,9 @@ app.use(express.json())
 // Servir archivos estáticos del frontend en producción
 if (NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist')
-  app.use(express.static(distPath))
-
   console.log(`📦 Sirviendo frontend desde: ${distPath}`)
+
+  app.use(express.static(distPath))
 }
 
 // Función para obtener información de un archivo
@@ -615,14 +615,6 @@ app.post('/api/cache/reload', async (req, res) => {
   }
 })
 
-// Ruta catch-all para SPA (debe estar al final, después de todas las rutas API)
-if (NODE_ENV === 'production' || IS_ELECTRON) {
-  app.use((req, res) => {
-    const indexPath = path.join(__dirname, '..', 'dist', 'index.html')
-    res.sendFile(indexPath)
-  })
-}
-
 // Endpoint adicional para diagnóstico
 app.get('/api/system/info', (req, res) => {
   res.json({
@@ -637,6 +629,20 @@ app.get('/api/system/info', (req, res) => {
     },
   })
 })
+
+// Ruta catch-all para SPA (debe estar al final, después de todas las rutas API)
+if (NODE_ENV === 'production' || IS_ELECTRON) {
+  app.get('*', (req, res) => {
+    const indexPath = path.join(__dirname, '..', 'dist', 'index.html')
+    console.log(`📄 Sirviendo: ${req.url} -> ${indexPath}`)
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        console.error(`❌ Error sirviendo ${req.url}:`, err.message)
+        res.status(500).send('Error al cargar la aplicación')
+      }
+    })
+  })
+}
 
 app.listen(PORT, HOST, async () => {
   console.log(`🚀 Server running on http://${HOST}:${PORT}`)
