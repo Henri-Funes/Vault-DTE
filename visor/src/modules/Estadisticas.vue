@@ -90,6 +90,13 @@
           <div class="text-sm text-green-600">Total Facturas</div>
         </div>
 
+        <!-- Anuladas -->
+        <div class="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg border border-red-300">
+          <div class="text-red-600 text-3xl mb-2">❌</div>
+          <div class="text-2xl font-bold text-red-700">{{ stats.anuladas }}</div>
+          <div class="text-sm text-red-600">Anuladas</div>
+        </div>
+
         <!-- Agregados Recientemente -->
         <div
           class="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg border border-purple-200"
@@ -97,15 +104,6 @@
           <div class="text-purple-600 text-3xl mb-2">🆕</div>
           <div class="text-2xl font-bold text-purple-700">{{ stats.recentFiles }}</div>
           <div class="text-sm text-purple-600">Agregados Recientemente</div>
-        </div>
-
-        <!-- Total Archivos -->
-        <div
-          class="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200"
-        >
-          <div class="text-blue-600 text-3xl mb-2">📦</div>
-          <div class="text-2xl font-bold text-blue-700">{{ stats.total }}</div>
-          <div class="text-sm text-blue-600">Total de Archivos</div>
         </div>
       </div>
 
@@ -211,6 +209,7 @@ const stats = ref({
   totalSize: '0 B',
   recentFiles: 0,
   pairedInvoices: 0,
+  anuladas: 0,
   pairedByFolder: {
     SA: 0,
     SM: 0,
@@ -238,6 +237,7 @@ async function loadStats() {
       totalSize: data.totalSizeFormatted,
       recentFiles: data.recentFiles,
       pairedInvoices: data.pairedInvoices,
+      anuladas: data.anuladas || 0,
       pairedByFolder: data.pairedByFolder,
     }
   } catch (err) {

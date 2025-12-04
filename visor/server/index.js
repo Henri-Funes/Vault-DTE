@@ -29,17 +29,12 @@ function getBackupPath() {
     return electronBackupPath
   }
 
-  // 3. Desarrollo: ruta relativa desde el proyecto
+  // 3. Desarrollo: ruta específica para desarrollo local
   if (NODE_ENV === 'development') {
-    // Buscar carpeta Backup en el directorio raíz del proyecto o padre
-    const projectRoot = path.join(__dirname, '..')
-    const localBackup = path.join(projectRoot, 'Backup')
-
-    // Si existe localmente, usarla
-    return localBackup
+    return 'J:/Henri/Copia de seguridad de facturas(No borrar)/Backup'
   }
 
-  // 4. Fallback: ruta hardcodeada para el servidor de producción
+  // 4. Producción: ruta del servidor Windows Server 2019
   return 'C:/zeta2/Henri/Copia de seguridad de facturas(No borrar)/Backup'
 }
 
@@ -234,12 +229,14 @@ async function calculateStats(structure) {
     totalSizeFormatted: structure.totalSizeFormatted,
     recentFiles: 0,
     pairedInvoices: 0,
+    anuladas: 0,
     pairedByFolder: {
       SA: 0,
       SM: 0,
       SS: 0,
       gastos: 0,
       remisiones: 0,
+      notas_de_credito: 0,
     },
   }
 
@@ -250,7 +247,11 @@ async function calculateStats(structure) {
     SS: new Map(),
     gastos: new Map(),
     remisiones: new Map(),
+    notas_de_credito: new Map(),
   }
+
+  // Mapa especial para contar anuladas
+  const anuladasMap = new Map()
 
   const recentDate = new Date()
   recentDate.setDate(recentDate.getDate() - 7)
@@ -290,6 +291,19 @@ async function calculateStats(structure) {
           dteMap.get(dte).json = true
         }
 
+        // Contar facturas anuladas
+        if (folderName === 'anuladas') {
+          if (!anuladasMap.has(dte)) {
+            anuladasMap.set(dte, { pdf: false, json: false })
+          }
+
+          if (file.extension === 'pdf') {
+            anuladasMap.get(dte).pdf = true
+          } else if (file.extension === 'json') {
+            anuladasMap.get(dte).json = true
+          }
+        }
+
         // Por carpeta
         if (dteMapByFolder[folderName]) {
           if (!dteMapByFolder[folderName].has(dte)) {
@@ -309,6 +323,9 @@ async function calculateStats(structure) {
   // Contar parejas completas
   stats.pairedInvoices = Array.from(dteMap.values()).filter((pair) => pair.pdf && pair.json).length
 
+  // Contar facturas anuladas (solo parejas completas)
+  stats.anuladas = Array.from(anuladasMap.values()).filter((pair) => pair.pdf && pair.json).length
+
   stats.pairedByFolder = {
     SA: Array.from(dteMapByFolder.SA.values()).filter((pair) => pair.pdf && pair.json).length,
     SM: Array.from(dteMapByFolder.SM.values()).filter((pair) => pair.pdf && pair.json).length,
@@ -316,6 +333,9 @@ async function calculateStats(structure) {
     gastos: Array.from(dteMapByFolder.gastos.values()).filter((pair) => pair.pdf && pair.json)
       .length,
     remisiones: Array.from(dteMapByFolder.remisiones.values()).filter(
+      (pair) => pair.pdf && pair.json,
+    ).length,
+    notas_de_credito: Array.from(dteMapByFolder.notas_de_credito.values()).filter(
       (pair) => pair.pdf && pair.json,
     ).length,
   }
@@ -394,7 +414,54 @@ app.get('/api/backup/stats', async (req, res) => {
   }
 })
 
-// Endpoint para abrir PDF en el navegador
+// Endpoint universal para abrir cualquier archivo
+app.post('/api/backup/open-file', async (req, res) => {
+  try {
+    const { filePath } = req.body
+
+    if (!filePath) {
+      return res.status(400).json({
+        success: false,
+        error: 'No se proporciono la ruta del archivo',
+      })
+    }
+
+    // Verificar que el archivo existe
+    await fs.access(filePath)
+
+    // Obtener extension del archivo
+    const ext = path.extname(filePath).toLowerCase()
+
+    // Leer el archivo
+    const fileBuffer = await fs.readFile(filePath)
+    const fileName = path.basename(filePath)
+
+    // Determinar el Content-Type segun la extension
+    const contentTypes = {
+      '.pdf': 'application/pdf',
+      '.json': 'application/json',
+      '.xml': 'application/xml',
+      '.txt': 'text/plain',
+      '.html': 'text/html',
+      '.css': 'text/css',
+      '.js': 'application/javascript',
+    }
+
+    const contentType = contentTypes[ext] || 'application/octet-stream'
+
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
+    res.send(fileBuffer)
+  } catch (error) {
+    console.error('Error opening file:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+})
+
+// Endpoint para abrir PDF en el navegador (mantener por compatibilidad)
 app.post('/api/backup/open-pdf', async (req, res) => {
   try {
     const { filePath } = req.body

@@ -42,6 +42,7 @@ export interface Stats {
   totalSizeFormatted: string
   recentFiles: number
   pairedInvoices: number
+  anuladas: number
   pairedByFolder: {
     SA: number
     SM: number
