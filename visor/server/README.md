@@ -270,3 +270,17 @@ const BACKUP_PATH = 'C:\\Dashboard\\Backup'
 ## 🔐 CORS
 
 El servidor tiene CORS habilitado para permitir peticiones desde el frontend en desarrollo.
+
+para actualizar la app
+
+# 1. Recompilar el frontend (si modificaste Vue/frontend)
+
+npm run build
+
+# 2. Reiniciar la app en PM2 (lee los nuevos archivos)
+
+pm2 restart visor-backup
+
+# O usar el script helper:
+
+.\pm2-commands.ps1 restart
