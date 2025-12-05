@@ -337,17 +337,111 @@ function backToClientes() {
 
 // Abrir archivo
 async function openFile(file: any) {
-  try {
-    const response = await fetch(`/api/file/open?path=${encodeURIComponent(file.path)}`)
-    const result = await response.json()
+  console.log('Abriendo archivo:', file)
 
-    if (!result.success) {
-      console.error('Error al abrir archivo:', result.error)
-      alert('Error al abrir el archivo: ' + result.error)
+  try {
+    // Normalizar extensión: quitar punto y convertir a minúsculas
+    const extension = file.extension.toLowerCase().replace(/^\./, '')
+
+    console.log('Extension detectada:', extension)
+
+    // Verificar si es un tipo de archivo soportado
+    if (['pdf', 'json', 'xml', 'txt'].includes(extension)) {
+      // Llamar al backend para obtener el archivo
+      const response = await fetch('/api/backup/open-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: file.path }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Error al cargar el archivo')
+      }
+
+      if (extension === 'pdf') {
+        // Abrir PDF en nueva pestaña
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        window.open(url, '_blank')
+
+        // Liberar el objeto URL después de un tiempo
+        setTimeout(() => window.URL.revokeObjectURL(url), 100)
+      } else if (extension === 'json') {
+        // Mostrar JSON formateado en nueva ventana
+        const jsonData = await response.json()
+        const newWindow = window.open('', '_blank')
+        if (newWindow) {
+          newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${file.name}</title>
+              <style>
+                body {
+                  font-family: 'Courier New', monospace;
+                  padding: 20px;
+                  background-color: #1e1e1e;
+                  color: #d4d4d4;
+                }
+                pre {
+                  background-color: #252526;
+                  padding: 20px;
+                  border-radius: 8px;
+                  overflow-x: auto;
+                  line-height: 1.5;
+                }
+              </style>
+            </head>
+            <body>
+              <h1>${file.name}</h1>
+              <pre>${JSON.stringify(jsonData, null, 2)}</pre>
+            </body>
+            </html>
+          `)
+          newWindow.document.close()
+        }
+      } else {
+        // Para otros tipos, abrir en nueva pestaña como texto
+        const text = await response.text()
+        const newWindow = window.open('', '_blank')
+        if (newWindow) {
+          newWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${file.name}</title>
+              <style>
+                body {
+                  font-family: 'Courier New', monospace;
+                  padding: 20px;
+                  background-color: #f5f5f5;
+                }
+                pre {
+                  background-color: white;
+                  padding: 20px;
+                  border-radius: 8px;
+                  overflow-x: auto;
+                }
+              </style>
+            </head>
+            <body>
+              <h1>${file.name}</h1>
+              <pre>${text}</pre>
+            </body>
+            </html>
+          `)
+          newWindow.document.close()
+        }
+      }
+    } else {
+      alert('Tipo de archivo no soportado para visualización: ' + extension)
     }
   } catch (error) {
     console.error('Error opening file:', error)
-    alert('Error al abrir el archivo')
+    alert(
+      'Error al abrir el archivo: ' +
+        (error instanceof Error ? error.message : 'Error desconocido'),
+    )
   }
 }
 

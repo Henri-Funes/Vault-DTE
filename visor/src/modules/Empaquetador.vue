@@ -1,5 +1,28 @@
 <template>
   <div class="bg-white rounded-xl shadow-lg p-6 w-full">
+    <!-- Barra de carga de descarga -->
+    <div
+      v-if="downloading"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+        <div class="text-center mb-6">
+          <div class="text-5xl mb-4 animate-bounce">📦</div>
+          <h3 class="text-2xl font-bold text-slate-800 mb-2">Descargando ZIP</h3>
+          <p class="text-slate-600">Espera un momento, por favor...</p>
+        </div>
+
+        <!-- Barra de progreso animada -->
+        <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div class="bg-blue-500 h-3 rounded-full animate-pulse" style="width: 100%"></div>
+        </div>
+
+        <div class="mt-4 text-center text-sm text-slate-500">
+          Empaquetando archivos, esto puede tomar unos segundos...
+        </div>
+      </div>
+    </div>
+
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold text-slate-800">📦 Empaquetador de Archivos</h2>
       <div class="flex gap-2">
@@ -238,6 +261,7 @@ const currentFolder = ref<string | null>(null)
 const currentFiles = ref<FileInfo[]>([])
 const selectedFiles = ref<FileInfo[]>([])
 const searchQuery = ref('')
+const downloading = ref(false) // Estado de descarga
 
 // Archivos filtrados por búsqueda
 const filteredFiles = computed(() => {
@@ -337,6 +361,8 @@ function formatBytes(bytes: number, decimals = 2) {
 async function downloadFolders() {
   if (selectedFolders.value.length === 0) return
 
+  downloading.value = true
+
   try {
     const response = await fetch('/api/backup/download-folders', {
       method: 'POST',
@@ -360,12 +386,16 @@ async function downloadFolders() {
   } catch (error) {
     console.error('Error downloading folders:', error)
     alert('Error al descargar las carpetas')
+  } finally {
+    downloading.value = false
   }
 }
 
 // Descargar archivos seleccionados
 async function downloadFiles() {
   if (selectedFiles.value.length === 0 || !currentFolder.value) return
+
+  downloading.value = true
 
   try {
     const response = await fetch('/api/backup/download-files', {
@@ -393,6 +423,8 @@ async function downloadFiles() {
   } catch (error) {
     console.error('Error downloading files:', error)
     alert('Error al descargar los archivos')
+  } finally {
+    downloading.value = false
   }
 }
 
