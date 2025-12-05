@@ -175,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { getBackupStructure, type FileInfo, type FolderInfo } from '@/services/api'
+import { getBackupStructure, getFolderFiles, type FileInfo, type FolderInfo } from '@/services/api'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const searchQuery = ref('')
@@ -186,6 +186,7 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const dateFrom = ref('')
 const dateTo = ref('')
+const isBackendFiltered = ref(false) // Indica si los archivos ya vienen filtrados del backend
 
 // Función para formatear nombres de carpetas
 const formatFolderName = (folderName: string): string => {
@@ -208,8 +209,8 @@ const filteredFiles = computed(() => {
     )
   }
 
-  // Filtrar por rango de fechas de EMISIÓN
-  if (dateFrom.value || dateTo.value) {
+  // Filtrar por rango de fechas de EMISIÓN (solo si NO vienen ya filtrados del backend)
+  if ((dateFrom.value || dateTo.value) && !isBackendFiltered.value) {
     const fromTime = dateFrom.value ? new Date(dateFrom.value).getTime() : 0
     const toTime = dateTo.value ? new Date(dateTo.value).setHours(23, 59, 59, 999) : Infinity
 
@@ -274,33 +275,60 @@ async function loadData() {
 }
 
 // Cargar archivos de la carpeta seleccionada
-function loadFolderFiles() {
+async function loadFolderFiles() {
   if (!selectedFolder.value || folders.value.length === 0) {
     allFiles.value = []
     return
   }
 
-  const folder = folders.value.find((f) => f.name === selectedFolder.value)
-  if (folder) {
-    allFiles.value = folder.files
+  try {
+    // Si hay filtro de fechas activo, hacer petición con filtro
+    if (dateFrom.value || dateTo.value) {
+      loading.value = true
+      const folderData = await getFolderFiles(selectedFolder.value, dateFrom.value, dateTo.value)
+      allFiles.value = folderData.files
+      isBackendFiltered.value = true // Marcar que vienen filtrados del backend
+      loading.value = false
+    } else {
+      // Sin filtro, usar datos del caché
+      const folder = folders.value.find((f) => f.name === selectedFolder.value)
+      if (folder) {
+        allFiles.value = folder.files
+        isBackendFiltered.value = false // Marcar que NO vienen filtrados
+      }
+    }
+  } catch (err) {
+    console.error('Error cargando archivos:', err)
+    error.value = err instanceof Error ? err.message : 'Error desconocido'
+    loading.value = false
   }
 }
 
 // Observar cambios en la carpeta seleccionada
 watch(selectedFolder, () => {
-  loadFolderFiles()
+  // Solo recargar automáticamente si NO hay filtro de fechas
+  if (!dateFrom.value && !dateTo.value) {
+    loadFolderFiles()
+  }
 })
 
 // Aplicar filtro de fechas
-function applyDateFilter() {
-  // El filtro se aplica automáticamente a través del computed
-  console.log('Filtro de fechas aplicado:', { dateFrom: dateFrom.value, dateTo: dateTo.value })
+async function applyDateFilter() {
+  if (!dateFrom.value && !dateTo.value) {
+    return
+  }
+
+  console.log('🔍 Aplicando filtro de fechas:', { dateFrom: dateFrom.value, dateTo: dateTo.value })
+  await loadFolderFiles()
 }
 
 // Limpiar filtro de fechas
 function clearDateFilter() {
   dateFrom.value = ''
   dateTo.value = ''
+  isBackendFiltered.value = false // Resetear flag
+  // Recargar archivos sin filtro
+  loadFolderFiles()
 }
 
 const getFileIcon = (type: string) => {
