@@ -452,8 +452,93 @@ app.get('/api/backup/structure', async (req, res) => {
 app.get('/api/backup/folder/:folderName', async (req, res) => {
   try {
     const { folderName } = req.params
+    const { dateFrom, dateTo } = req.query
 
-    // Usar caché
+    // Si hay filtro de fechas, procesar directamente
+    if (dateFrom || dateTo) {
+      console.log(`🔍 Filtrando carpeta ${folderName} por fechas:`, { dateFrom, dateTo })
+
+      const folderPath = path.join(BACKUP_PATH, folderName)
+
+      // Verificar que existe
+      try {
+        await fs.access(folderPath)
+      } catch (err) {
+        return res.status(404).json({
+          success: false,
+          error: 'Carpeta no encontrada',
+        })
+      }
+
+      // Leer todos los archivos
+      const allFiles = await fs.readdir(folderPath)
+      const filteredFiles = []
+
+      for (const fileName of allFiles) {
+        // Solo procesar archivos JSON
+        if (!fileName.endsWith('.json')) {
+          continue
+        }
+
+        try {
+          const filePath = path.join(folderPath, fileName)
+          const fileContent = await fs.readFile(filePath, 'utf-8')
+          const jsonData = JSON.parse(fileContent)
+
+          // Obtener fecha de emisión
+          const fecEmi = jsonData.identificacion?.fecEmi
+
+          if (fecEmi) {
+            // Verificar si está en el rango
+            const inRange = (!dateFrom || fecEmi >= dateFrom) && (!dateTo || fecEmi <= dateTo)
+
+            if (inRange) {
+              // Agregar el JSON y buscar su PDF correspondiente
+              const pdfName = fileName.replace('.json', '.pdf')
+              const pdfPath = path.join(folderPath, pdfName)
+
+              // Agregar JSON con emissionDate
+              const jsonInfo = await getFileInfo(filePath, fileName)
+              if (jsonInfo) {
+                jsonInfo.emissionDate = fecEmi // Agregar fecha de emisión
+                filteredFiles.push(jsonInfo)
+              }
+
+              // Agregar PDF si existe
+              try {
+                await fs.access(pdfPath)
+                const pdfInfo = await getFileInfo(pdfPath, pdfName)
+                if (pdfInfo) {
+                  pdfInfo.emissionDate = fecEmi // También al PDF para mantener consistencia
+                  filteredFiles.push(pdfInfo)
+                }
+              } catch (err) {
+                // PDF no existe, continuar
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Error procesando archivo ${fileName}:`, err.message)
+          // Continuar con el siguiente archivo
+        }
+      }
+
+      console.log(`✅ Filtrado completado: ${filteredFiles.length} archivos encontrados`)
+
+      return res.json({
+        success: true,
+        data: {
+          folder: folderName,
+          path: folderPath,
+          files: filteredFiles,
+          count: filteredFiles.length,
+          filtered: true,
+          dateRange: { dateFrom, dateTo },
+        },
+      })
+    }
+
+    // Sin filtro de fechas, usar caché
     const data = await loadBackupData()
     const folder = data.structure.folders.find((f) => f.name === folderName)
 
@@ -791,6 +876,319 @@ app.get('/api/clientes', async (req, res) => {
     })
   } catch (err) {
     console.error('Error loading clientes:', err)
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    })
+  }
+})
+
+// Endpoint para obtener clientes con notas de crédito
+app.get('/api/clientes/notas-credito', async (req, res) => {
+  try {
+    // Ruta del archivo de clientes
+    const clientesPath =
+      NODE_ENV === 'development'
+        ? 'J:/Henri/Clientes/lista_clientes.json'
+        : 'C:/zeta2/Henri/Clientes/lista_clientes.json'
+
+    // Leer archivo de clientes
+    const clientesData = await fs.readFile(clientesPath, 'utf-8')
+    const clientesJson = JSON.parse(clientesData)
+
+    // Obtener lista de clientes
+    const clientes = clientesJson.clientes || []
+
+    // Contar notas de crédito por cliente
+    const clientesConNotasCredito = []
+
+    // Cargar datos de notas de crédito
+    const notasCreditoPath = path.join(BACKUP_PATH, 'notas_de_credito')
+
+    try {
+      await fs.access(notasCreditoPath)
+      const notasCreditoFiles = await fs.readdir(notasCreditoPath)
+
+      // Crear mapa de notas de crédito por cliente
+      const notasCreditoPorCliente = new Map()
+
+      for (const fileName of notasCreditoFiles) {
+        if (fileName.endsWith('.json')) {
+          try {
+            const filePath = path.join(notasCreditoPath, fileName)
+            const fileContent = await fs.readFile(filePath, 'utf-8')
+            const jsonData = JSON.parse(fileContent)
+
+            // Obtener nombre del receptor
+            const nombreCliente = jsonData.receptor?.nombre
+
+            if (nombreCliente) {
+              const count = notasCreditoPorCliente.get(nombreCliente) || 0
+              notasCreditoPorCliente.set(nombreCliente, count + 1)
+            }
+          } catch (err) {
+            // Ignorar archivos con errores
+            console.error(`Error leyendo archivo ${fileName}:`, err.message)
+          }
+        }
+      }
+
+      // Crear lista de clientes con conteo de notas de crédito
+      for (const cliente of clientes) {
+        clientesConNotasCredito.push({
+          nombre: cliente,
+          anuladas: 0,
+          notas_de_credito: notasCreditoPorCliente.get(cliente) || 0,
+        })
+      }
+
+      // Ordenar por número de notas de crédito (descendente)
+      clientesConNotasCredito.sort((a, b) => b.notas_de_credito - a.notas_de_credito)
+    } catch (err) {
+      console.warn('No se pudo acceder a la carpeta notas_de_credito:', err.message)
+      // Si no existe la carpeta, solo devolver clientes sin notas de crédito
+      for (const cliente of clientes) {
+        clientesConNotasCredito.push({
+          nombre: cliente,
+          anuladas: 0,
+          notas_de_credito: 0,
+        })
+      }
+    }
+
+    res.json({
+      success: true,
+      data: clientesConNotasCredito,
+    })
+  } catch (err) {
+    console.error('Error loading clientes notas de credito:', err)
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    })
+  }
+})
+
+// Endpoint para obtener notas de crédito de un cliente específico
+app.get('/api/clientes/:nombreCliente/notas-credito', async (req, res) => {
+  try {
+    const { nombreCliente } = req.params
+    const notasCreditoPath = path.join(BACKUP_PATH, 'notas_de_credito')
+
+    try {
+      await fs.access(notasCreditoPath)
+    } catch (err) {
+      return res.json({
+        success: true,
+        data: {
+          cliente: nombreCliente,
+          facturas: [],
+          count: 0,
+        },
+      })
+    }
+
+    const notasCreditoFiles = await fs.readdir(notasCreditoPath)
+    const facturasCliente = []
+
+    for (const fileName of notasCreditoFiles) {
+      if (fileName.endsWith('.json')) {
+        try {
+          const filePath = path.join(notasCreditoPath, fileName)
+          const fileContent = await fs.readFile(filePath, 'utf-8')
+          const jsonData = JSON.parse(fileContent)
+
+          // Verificar si pertenece al cliente
+          const nombreReceptor = jsonData.receptor?.nombre
+
+          if (nombreReceptor === nombreCliente) {
+            // Obtener info del archivo
+            const fileInfo = await getFileInfo(filePath, fileName)
+            if (fileInfo) {
+              fileInfo.emissionDate = jsonData.identificacion?.fecEmi || null
+              fileInfo.numeroDocumento =
+                jsonData.identificacion?.codigoGeneracion || fileName.replace('.json', '')
+              facturasCliente.push(fileInfo)
+
+              // Buscar PDF correspondiente
+              const pdfName = fileName.replace('.json', '.pdf')
+              const pdfPath = path.join(notasCreditoPath, pdfName)
+              try {
+                await fs.access(pdfPath)
+                const pdfInfo = await getFileInfo(pdfPath, pdfName)
+                if (pdfInfo) {
+                  pdfInfo.emissionDate = jsonData.identificacion?.fecEmi || null
+                  pdfInfo.numeroDocumento =
+                    jsonData.identificacion?.codigoGeneracion || pdfName.replace('.pdf', '')
+                  facturasCliente.push(pdfInfo)
+                }
+              } catch (err) {
+                // PDF no existe
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Error procesando archivo ${fileName}:`, err.message)
+        }
+      }
+    }
+
+    // Ordenar por fecha de emisión (más reciente primero)
+    facturasCliente.sort((a, b) => {
+      if (!a.emissionDate) return 1
+      if (!b.emissionDate) return -1
+      return b.emissionDate.localeCompare(a.emissionDate)
+    })
+
+    res.json({
+      success: true,
+      data: {
+        cliente: nombreCliente,
+        facturas: facturasCliente,
+        count: facturasCliente.length,
+      },
+    })
+  } catch (err) {
+    console.error('Error loading notas de credito for cliente:', err)
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    })
+  }
+})
+
+// Endpoint para obtener facturas anuladas de un cliente específico
+app.get('/api/clientes/:nombreCliente/anuladas', async (req, res) => {
+  try {
+    const { nombreCliente } = req.params
+    const anuladasPath = path.join(BACKUP_PATH, 'anuladas')
+
+    try {
+      await fs.access(anuladasPath)
+    } catch (err) {
+      return res.json({
+        success: true,
+        data: {
+          cliente: nombreCliente,
+          facturas: [],
+          count: 0,
+        },
+      })
+    }
+
+    const anuladasFiles = await fs.readdir(anuladasPath)
+    const facturasCliente = []
+
+    for (const fileName of anuladasFiles) {
+      if (fileName.endsWith('.json')) {
+        try {
+          const filePath = path.join(anuladasPath, fileName)
+          const fileContent = await fs.readFile(filePath, 'utf-8')
+          const jsonData = JSON.parse(fileContent)
+
+          // Verificar si pertenece al cliente
+          const nombreReceptor = jsonData.receptor?.nombre
+
+          if (nombreReceptor === nombreCliente) {
+            // Obtener info del archivo
+            const fileInfo = await getFileInfo(filePath, fileName)
+            if (fileInfo) {
+              fileInfo.emissionDate = jsonData.identificacion?.fecEmi || null
+              fileInfo.numeroDocumento =
+                jsonData.identificacion?.codigoGeneracion || fileName.replace('.json', '')
+              facturasCliente.push(fileInfo)
+
+              // Buscar PDF correspondiente
+              const pdfName = fileName.replace('.json', '.pdf')
+              const pdfPath = path.join(anuladasPath, pdfName)
+              try {
+                await fs.access(pdfPath)
+                const pdfInfo = await getFileInfo(pdfPath, pdfName)
+                if (pdfInfo) {
+                  pdfInfo.emissionDate = jsonData.identificacion?.fecEmi || null
+                  pdfInfo.numeroDocumento =
+                    jsonData.identificacion?.codigoGeneracion || pdfName.replace('.pdf', '')
+                  facturasCliente.push(pdfInfo)
+                }
+              } catch (err) {
+                // PDF no existe
+              }
+            }
+          }
+        } catch (err) {
+          console.error(`Error procesando archivo ${fileName}:`, err.message)
+        }
+      }
+    }
+
+    // Ordenar por fecha de emisión (más reciente primero)
+    facturasCliente.sort((a, b) => {
+      if (!a.emissionDate) return 1
+      if (!b.emissionDate) return -1
+      return b.emissionDate.localeCompare(a.emissionDate)
+    })
+
+    res.json({
+      success: true,
+      data: {
+        cliente: nombreCliente,
+        facturas: facturasCliente,
+        count: facturasCliente.length,
+      },
+    })
+  } catch (err) {
+    console.error('Error loading anuladas for cliente:', err)
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    })
+  }
+})
+
+// Endpoint para abrir archivos en el visor del sistema
+app.get('/api/file/open', async (req, res) => {
+  try {
+    const { path: filePath } = req.query
+
+    if (!filePath) {
+      return res.status(400).json({
+        success: false,
+        error: 'Falta el parámetro path',
+      })
+    }
+
+    // Verificar que el archivo existe
+    try {
+      await fs.access(filePath)
+    } catch (err) {
+      return res.status(404).json({
+        success: false,
+        error: 'Archivo no encontrado',
+      })
+    }
+
+    // En Windows, usar start para abrir el archivo con la aplicación predeterminada
+    const { exec } = await import('child_process')
+    const command =
+      process.platform === 'win32' ? `start "" "${filePath}"` : `xdg-open "${filePath}"`
+
+    exec(command, (error) => {
+      if (error) {
+        console.error('Error abriendo archivo:', error)
+        return res.json({
+          success: false,
+          error: 'Error al abrir el archivo: ' + error.message,
+        })
+      }
+    })
+
+    // Responder inmediatamente (no esperar a que se abra)
+    res.json({
+      success: true,
+      message: 'Archivo abierto',
+    })
+  } catch (err) {
+    console.error('Error en /api/file/open:', err)
     res.status(500).json({
       success: false,
       error: err.message,

@@ -94,13 +94,27 @@ export async function getBackupStructure(): Promise<BackupStructure> {
 }
 
 // Obtener archivos de una carpeta específica
-export async function getFolderFiles(folderName: string): Promise<{
+export async function getFolderFiles(
+  folderName: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<{
   folder: string
   path: string
   files: FileInfo[]
   count: number
 }> {
-  return fetchAPI(`/backup/folder/${folderName}`)
+  let endpoint = `/backup/folder/${folderName}`
+  const params = new URLSearchParams()
+
+  if (dateFrom) params.append('dateFrom', dateFrom)
+  if (dateTo) params.append('dateTo', dateTo)
+
+  if (params.toString()) {
+    endpoint += `?${params.toString()}`
+  }
+
+  return fetchAPI(endpoint)
 }
 
 // Obtener estadísticas (con filtro de fechas opcional)
