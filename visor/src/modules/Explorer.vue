@@ -32,7 +32,7 @@
               : 'bg-slate-100 text-slate-700 hover:bg-slate-200',
           ]"
         >
-          📁 {{ folder.name }} ({{ folder.fileCount }})
+          📁 {{ formatFolderName(folder.name) }} ({{ folder.fileCount }})
         </button>
       </div>
     </div>
@@ -80,7 +80,9 @@
     <div class="flex items-center gap-2 mb-4 text-sm text-slate-600">
       <span class="cursor-pointer hover:text-blue-600">🏠 Backup</span>
       <span>/</span>
-      <span class="text-slate-800 font-medium">{{ selectedFolder || 'Todas las carpetas' }}</span>
+      <span class="text-slate-800 font-medium">{{
+        selectedFolder ? formatFolderName(selectedFolder) : 'Todas las carpetas'
+      }}</span>
     </div>
 
     <!-- Estado de carga -->
@@ -138,6 +140,12 @@
           <div class="col-span-5 flex items-center gap-2">
             <span class="text-2xl">{{ getFileIcon(file.type) }}</span>
             <span class="text-slate-700 font-medium truncate">{{ file.name }}</span>
+            <span
+              v-if="selectedFolder === 'anuladas'"
+              class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold"
+            >
+              ANULADA
+            </span>
           </div>
           <div class="col-span-2">
             <span
@@ -159,7 +167,9 @@
       class="mt-4 flex items-center justify-between text-sm text-slate-600"
     >
       <span>Mostrando {{ filteredFiles.length }} de {{ allFiles.length }} archivos</span>
-      <span v-if="selectedFolder" class="text-blue-600">📁 {{ selectedFolder }}</span>
+      <span v-if="selectedFolder" class="text-blue-600">
+        📁 {{ formatFolderName(selectedFolder) }}
+      </span>
     </div>
   </div>
 </template>
@@ -176,6 +186,16 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const dateFrom = ref('')
 const dateTo = ref('')
+
+// Función para formatear nombres de carpetas
+const formatFolderName = (folderName: string): string => {
+  const folderMap: Record<string, string> = {
+    SA: 'H1',
+    SM: 'H2',
+    SS: 'H4',
+  }
+  return folderMap[folderName] || folderName
+}
 
 // Archivos filtrados por búsqueda, carpeta seleccionada y fechas de emisión
 const filteredFiles = computed(() => {

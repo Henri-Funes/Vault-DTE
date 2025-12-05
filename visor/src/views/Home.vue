@@ -49,6 +49,7 @@
       <div class="transition-all duration-300 mb-6">
         <Estadisticas v-if="activeTab === 'stats'" />
         <Explorer v-if="activeTab === 'explorer'" />
+        <Clientes v-if="activeTab === 'clientes'" />
         <Empaquetador v-if="activeTab === 'packager'" />
       </div>
 
@@ -106,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import Clientes from '@/modules/Clientes.vue'
 import Empaquetador from '@/modules/Empaquetador.vue'
 import Estadisticas from '@/modules/Estadisticas.vue'
 import Explorer from '@/modules/Explorer.vue'
@@ -120,6 +122,7 @@ const totalSize = ref('')
 const tabs = [
   { id: 'stats', name: 'Estadísticas', icon: '📊' },
   { id: 'explorer', name: 'Explorador', icon: '📂' },
+  { id: 'clientes', name: 'Clientes', icon: '👥' },
   { id: 'packager', name: 'Empaquetador', icon: '📦' },
 ]
 

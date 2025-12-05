@@ -127,11 +127,11 @@ function getFileType(ext) {
 }
 
 // Función para cargar datos del backup (con caché)
-async function loadBackupData() {
+async function loadBackupData(force = false) {
   const now = Date.now()
 
-  // Si hay caché válida, retornarla
-  if (cache.structure && cache.lastUpdate && now - cache.lastUpdate < CACHE_DURATION) {
+  // Si hay caché válida y no se fuerza recarga, retornarla
+  if (!force && cache.structure && cache.lastUpdate && now - cache.lastUpdate < CACHE_DURATION) {
     console.log('📦 Usando datos en caché')
     return cache
   }
@@ -160,9 +160,13 @@ async function loadBackupData() {
     // Leer la carpeta principal
     const mainDir = await fs.readdir(BACKUP_PATH, { withFileTypes: true })
 
-    // Procesar cada subcarpeta
+    // Procesar cada subcarpeta (excluir descargas_gastos y descargas_remisiones)
     for (const entry of mainDir) {
-      if (entry.isDirectory()) {
+      if (
+        entry.isDirectory() &&
+        entry.name !== 'descargas_gastos' &&
+        entry.name !== 'descargas_remisiones'
+      ) {
         const folderPath = path.join(BACKUP_PATH, entry.name)
         const files = []
         let folderSize = 0
@@ -250,15 +254,34 @@ async function calculateStats(structure) {
     notas_de_credito: new Map(),
   }
 
-  // Mapa especial para contar anuladas
-  const anuladasMap = new Map()
+  // Contadores simples por carpeta (para contar TODOS los archivos)
+  const fileCountByFolder = {
+    SA: { pdf: 0, json: 0 },
+    SM: { pdf: 0, json: 0 },
+    SS: { pdf: 0, json: 0 },
+    gastos: { pdf: 0, json: 0 },
+    remisiones: { pdf: 0, json: 0 },
+    notas_de_credito: { pdf: 0, json: 0 },
+  }
 
-  const recentDate = new Date()
-  recentDate.setDate(recentDate.getDate() - 7)
+  // Mapa especial para contar anuladas (usar mismo método que otras carpetas)
+  const anuladasCount = {
+    pdf: 0,
+    json: 0,
+  }
+
+  // Calcular fecha de ayer (para archivos recientes)
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  yesterday.setHours(0, 0, 0, 0)
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
 
   // Procesar archivos
+  console.log('📂 Procesando carpetas...')
   for (const folder of structure.folders) {
     const folderName = folder.name
+    console.log(`  - Carpeta: ${folderName}, Archivos: ${folder.files.length}`)
 
     for (const file of folder.files) {
       // Contar por tipo
@@ -270,10 +293,29 @@ async function calculateStats(structure) {
 
       stats.total++
 
-      // Archivos recientes
+      // Archivos recientes (solo de ayer)
       const fileDate = new Date(file.modifiedDate)
-      if (fileDate >= recentDate) {
+      fileDate.setHours(0, 0, 0, 0)
+      if (fileDate.getTime() === yesterday.getTime()) {
         stats.recentFiles++
+      }
+
+      // Contar archivos por carpeta (TODOS los archivos PDF y JSON)
+      if (fileCountByFolder[folderName]) {
+        if (file.extension === 'pdf') {
+          fileCountByFolder[folderName].pdf++
+        } else if (file.extension === 'json') {
+          fileCountByFolder[folderName].json++
+        }
+      }
+
+      // Contar facturas anuladas por separado
+      if (folderName === 'anuladas') {
+        if (file.extension === 'pdf') {
+          anuladasCount.pdf++
+        } else if (file.extension === 'json') {
+          anuladasCount.json++
+        }
       }
 
       // Parejas DTE
@@ -289,19 +331,6 @@ async function calculateStats(structure) {
           dteMap.get(dte).pdf = true
         } else if (file.extension === 'json') {
           dteMap.get(dte).json = true
-        }
-
-        // Contar facturas anuladas
-        if (folderName === 'anuladas') {
-          if (!anuladasMap.has(dte)) {
-            anuladasMap.set(dte, { pdf: false, json: false })
-          }
-
-          if (file.extension === 'pdf') {
-            anuladasMap.get(dte).pdf = true
-          } else if (file.extension === 'json') {
-            anuladasMap.get(dte).json = true
-          }
         }
 
         // Por carpeta
@@ -323,22 +352,80 @@ async function calculateStats(structure) {
   // Contar parejas completas
   stats.pairedInvoices = Array.from(dteMap.values()).filter((pair) => pair.pdf && pair.json).length
 
-  // Contar facturas anuladas (solo parejas completas)
-  stats.anuladas = Array.from(anuladasMap.values()).filter((pair) => pair.pdf && pair.json).length
+  // Contar facturas anuladas (parejas completas, no total de archivos)
+  stats.anuladas = Math.min(anuladasCount.pdf, anuladasCount.json)
 
+  // Usar conteo simple de archivos por carpeta (total de archivos / 2 para parejas)
   stats.pairedByFolder = {
-    SA: Array.from(dteMapByFolder.SA.values()).filter((pair) => pair.pdf && pair.json).length,
-    SM: Array.from(dteMapByFolder.SM.values()).filter((pair) => pair.pdf && pair.json).length,
-    SS: Array.from(dteMapByFolder.SS.values()).filter((pair) => pair.pdf && pair.json).length,
-    gastos: Array.from(dteMapByFolder.gastos.values()).filter((pair) => pair.pdf && pair.json)
-      .length,
-    remisiones: Array.from(dteMapByFolder.remisiones.values()).filter(
-      (pair) => pair.pdf && pair.json,
-    ).length,
-    notas_de_credito: Array.from(dteMapByFolder.notas_de_credito.values()).filter(
-      (pair) => pair.pdf && pair.json,
-    ).length,
+    SA: Math.floor(Math.min(fileCountByFolder.SA.pdf, fileCountByFolder.SA.json)),
+    SM: Math.floor(Math.min(fileCountByFolder.SM.pdf, fileCountByFolder.SM.json)),
+    SS: Math.floor(Math.min(fileCountByFolder.SS.pdf, fileCountByFolder.SS.json)),
+    gastos: Math.floor(Math.min(fileCountByFolder.gastos.pdf, fileCountByFolder.gastos.json)),
+    remisiones: Math.floor(
+      Math.min(fileCountByFolder.remisiones.pdf, fileCountByFolder.remisiones.json),
+    ),
+    notas_de_credito: Math.floor(
+      Math.min(fileCountByFolder.notas_de_credito.pdf, fileCountByFolder.notas_de_credito.json),
+    ),
   }
+
+  console.log('📊 Conteo de archivos por carpeta:')
+  console.log(
+    '  SA: PDF=',
+    fileCountByFolder.SA.pdf,
+    'JSON=',
+    fileCountByFolder.SA.json,
+    'Parejas=',
+    stats.pairedByFolder.SA,
+  )
+  console.log(
+    '  SM: PDF=',
+    fileCountByFolder.SM.pdf,
+    'JSON=',
+    fileCountByFolder.SM.json,
+    'Parejas=',
+    stats.pairedByFolder.SM,
+  )
+  console.log(
+    '  SS: PDF=',
+    fileCountByFolder.SS.pdf,
+    'JSON=',
+    fileCountByFolder.SS.json,
+    'Parejas=',
+    stats.pairedByFolder.SS,
+  )
+  console.log(
+    '  gastos: PDF=',
+    fileCountByFolder.gastos.pdf,
+    'JSON=',
+    fileCountByFolder.gastos.json,
+    'Parejas=',
+    stats.pairedByFolder.gastos,
+  )
+  console.log(
+    '  remisiones: PDF=',
+    fileCountByFolder.remisiones.pdf,
+    'JSON=',
+    fileCountByFolder.remisiones.json,
+    'Parejas=',
+    stats.pairedByFolder.remisiones,
+  )
+  console.log(
+    '  notas_de_credito: PDF=',
+    fileCountByFolder.notas_de_credito.pdf,
+    'JSON=',
+    fileCountByFolder.notas_de_credito.json,
+    'Parejas=',
+    stats.pairedByFolder.notas_de_credito,
+  )
+  console.log(
+    '  anuladas: PDF=',
+    anuladasCount.pdf,
+    'JSON=',
+    anuladasCount.json,
+    'Parejas=',
+    stats.anuladas,
+  )
 
   return stats
 }
@@ -399,7 +486,8 @@ app.get('/api/backup/folder/:folderName', async (req, res) => {
 // Endpoint para obtener estadísticas
 app.get('/api/backup/stats', async (req, res) => {
   try {
-    const data = await loadBackupData()
+    const force = req.query.force === 'true'
+    const data = await loadBackupData(force)
 
     res.json({
       success: true,
@@ -625,6 +713,92 @@ app.post('/api/backup/download-files', async (req, res) => {
 })
 
 // Endpoint de health check
+// Endpoint para obtener clientes con anuladas
+// Endpoint para obtener clientes (con caché)
+app.get('/api/clientes', async (req, res) => {
+  try {
+    // Ruta del archivo de clientes
+    const clientesPath =
+      NODE_ENV === 'development'
+        ? 'J:/Henri/Clientes/lista_clientes.json'
+        : 'C:/zeta2/Henri/Clientes/lista_clientes.json'
+
+    // Leer archivo de clientes
+    const clientesData = await fs.readFile(clientesPath, 'utf-8')
+    const clientesJson = JSON.parse(clientesData)
+
+    // Obtener lista de clientes
+    const clientes = clientesJson.clientes || []
+
+    // Contar anuladas por cliente
+    const clientesConAnuladas = []
+
+    // Cargar datos de facturas anuladas
+    const anuladasPath = path.join(BACKUP_PATH, 'anuladas')
+
+    try {
+      await fs.access(anuladasPath)
+      const anuladasFiles = await fs.readdir(anuladasPath)
+
+      // Crear mapa de anuladas por cliente
+      const anuladasPorCliente = new Map()
+
+      for (const fileName of anuladasFiles) {
+        if (fileName.endsWith('.json')) {
+          try {
+            const filePath = path.join(anuladasPath, fileName)
+            const fileContent = await fs.readFile(filePath, 'utf-8')
+            const jsonData = JSON.parse(fileContent)
+
+            // Obtener nombre del receptor
+            const nombreCliente = jsonData.receptor?.nombre
+
+            if (nombreCliente) {
+              const count = anuladasPorCliente.get(nombreCliente) || 0
+              anuladasPorCliente.set(nombreCliente, count + 1)
+            }
+          } catch (err) {
+            // Ignorar archivos con errores
+            console.error(`Error leyendo archivo ${fileName}:`, err.message)
+          }
+        }
+      }
+
+      // Crear lista de clientes con conteo de anuladas
+      for (const cliente of clientes) {
+        clientesConAnuladas.push({
+          nombre: cliente,
+          anuladas: anuladasPorCliente.get(cliente) || 0,
+        })
+      }
+
+      // Ordenar por número de anuladas (descendente)
+      clientesConAnuladas.sort((a, b) => b.anuladas - a.anuladas)
+    } catch (err) {
+      console.warn('No se pudo acceder a la carpeta anuladas:', err.message)
+      // Si no existe la carpeta, solo devolver clientes sin anuladas
+      for (const cliente of clientes) {
+        clientesConAnuladas.push({
+          nombre: cliente,
+          anuladas: 0,
+        })
+      }
+    }
+
+    res.json({
+      success: true,
+      data: clientesConAnuladas,
+    })
+  } catch (err) {
+    console.error('Error loading clientes:', err)
+    res.status(500).json({
+      success: false,
+      error: err.message,
+    })
+  }
+})
+
+// Endpoint de health check
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
@@ -636,6 +810,73 @@ app.get('/api/health', (req, res) => {
       isLoading: cache.isLoading,
     },
   })
+})
+
+// Endpoint para contar archivos directamente en carpeta SA
+app.get('/api/count-files-sa', async (req, res) => {
+  try {
+    const saPath = path.join(BACKUP_PATH, 'SA')
+    console.log('📊 Contando archivos en SA:', saPath)
+
+    // Verificar que existe la carpeta
+    try {
+      await fs.access(saPath)
+    } catch (err) {
+      return res.json({
+        success: false,
+        error: 'Carpeta SA no encontrada',
+        path: saPath,
+      })
+    }
+
+    // Leer todos los archivos
+    const files = await fs.readdir(saPath)
+
+    let pdfCount = 0
+    let jsonCount = 0
+    let otherCount = 0
+    const sampleFiles = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const ext = path.extname(file).toLowerCase()
+
+      if (ext === '.pdf') {
+        pdfCount++
+        if (pdfCount <= 3) sampleFiles.push(file)
+      } else if (ext === '.json') {
+        jsonCount++
+        if (jsonCount <= 3) sampleFiles.push(file)
+      } else {
+        otherCount++
+      }
+    }
+
+    const result = {
+      success: true,
+      carpeta: 'SA (H1)',
+      ruta: saPath,
+      totalArchivos: files.length,
+      conteos: {
+        pdf: pdfCount,
+        json: jsonCount,
+        otros: otherCount,
+      },
+      parejasCompletas: Math.min(pdfCount, jsonCount),
+      muestrasArchivos: sampleFiles,
+    }
+
+    console.log('✅ Resultado conteo SA:', result)
+
+    res.json(result)
+  } catch (error) {
+    console.error('❌ Error contando archivos SA:', error)
+    res.json({
+      success: false,
+      error: error.message,
+      stack: error.stack,
+    })
+  }
 })
 
 // Endpoint para limpiar caché manualmente
