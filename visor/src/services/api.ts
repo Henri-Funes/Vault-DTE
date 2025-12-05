@@ -104,12 +104,17 @@ export async function getFolderFiles(folderName: string): Promise<{
 }
 
 // Obtener estadísticas (con filtro de fechas opcional)
-export async function getBackupStats(dateFrom?: string, dateTo?: string): Promise<Stats> {
+export async function getBackupStats(
+  dateFrom?: string,
+  dateTo?: string,
+  force?: boolean,
+): Promise<Stats> {
   let endpoint = '/backup/stats'
   const params = new URLSearchParams()
 
   if (dateFrom) params.append('dateFrom', dateFrom)
   if (dateTo) params.append('dateTo', dateTo)
+  if (force) params.append('force', 'true')
 
   if (params.toString()) {
     endpoint += `?${params.toString()}`

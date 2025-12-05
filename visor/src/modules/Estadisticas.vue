@@ -3,56 +3,29 @@
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-bold text-slate-800">📊 Estadísticas</h2>
       <button
-        @click="loadStats"
+        @click="loadStats(true)"
         class="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
       >
         🔄 Actualizar
       </button>
     </div>
 
-    <!-- Filtro de fechas -->
-    <div class="mb-6 bg-slate-50 rounded-lg p-4 border border-slate-200">
-      <div class="flex items-center gap-4 flex-wrap">
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-slate-800">📅 Desde:</label>
-          <input
-            v-model="dateFrom"
-            type="date"
-            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
-          />
-        </div>
-        <div class="flex items-center gap-2">
-          <label class="text-sm font-medium text-slate-800">📅 Hasta:</label>
-          <input
-            v-model="dateTo"
-            type="date"
-            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
-          />
-        </div>
-        <button
-          @click="applyDateFilter"
-          :disabled="!dateFrom && !dateTo"
-          class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed text-sm"
-        >
-          🔍 Filtrar
-        </button>
-        <button
-          v-if="dateFrom || dateTo"
-          @click="clearDateFilter"
-          class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm"
-        >
-          ✕ Limpiar
-        </button>
-        <span v-if="dateFrom || dateTo" class="text-sm text-blue-600 font-medium">
-          📌 Filtro activo
-        </span>
-      </div>
-    </div>
-
     <!-- Estado de carga -->
     <div v-if="loading" class="text-center py-12">
       <div class="text-4xl mb-4">⏳</div>
       <p class="text-slate-600">Cargando estadísticas...</p>
+    </div>
+
+    <!-- Sin datos cargados -->
+    <div v-else-if="!statsLoaded" class="text-center py-12">
+      <div class="text-4xl mb-4">📊</div>
+      <p class="text-slate-600 mb-4">Presiona "Actualizar" para cargar las estadísticas</p>
+      <button
+        @click="loadStats(true)"
+        class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+      >
+        🔄 Cargar Estadísticas
+      </button>
     </div>
 
     <!-- Error -->
@@ -115,7 +88,7 @@
         >
           <div class="text-cyan-600 text-3xl mb-2">🏢</div>
           <div class="text-2xl font-bold text-cyan-700">{{ stats.pairedByFolder.SA }}</div>
-          <div class="text-sm text-cyan-600">H1 - Santa Ana</div>
+          <div class="text-sm text-cyan-600">H1</div>
         </div>
 
         <!-- H2 - San Miguel (SM) -->
@@ -124,7 +97,7 @@
         >
           <div class="text-teal-600 text-3xl mb-2">🏢</div>
           <div class="text-2xl font-bold text-teal-700">{{ stats.pairedByFolder.SM }}</div>
-          <div class="text-sm text-teal-600">H2 - San Miguel</div>
+          <div class="text-sm text-teal-600">H2</div>
         </div>
 
         <!-- H4 - San Salvador (SS) -->
@@ -133,7 +106,7 @@
         >
           <div class="text-emerald-600 text-3xl mb-2">🏢</div>
           <div class="text-2xl font-bold text-emerald-700">{{ stats.pairedByFolder.SS }}</div>
-          <div class="text-sm text-emerald-600">H4 - San Salvador</div>
+          <div class="text-sm text-emerald-600">H4</div>
         </div>
 
         <!-- Gastos -->
@@ -195,8 +168,7 @@ import { computed, onMounted, ref } from 'vue'
 
 const loading = ref(true)
 const error = ref<string | null>(null)
-const dateFrom = ref('')
-const dateTo = ref('')
+const statsLoaded = ref(false)
 
 // Datos de estadísticas
 const stats = ref({
@@ -221,12 +193,14 @@ const stats = ref({
 })
 
 // Cargar estadísticas del backend
-async function loadStats() {
+async function loadStats(forceRefresh = false) {
   loading.value = true
   error.value = null
 
   try {
-    const data = await getBackupStats(dateFrom.value || undefined, dateTo.value || undefined)
+    // Si es la primera carga o se fuerza el refresh, usar force=true
+    const shouldForce = forceRefresh || !statsLoaded.value
+    const data = await getBackupStats(undefined, undefined, shouldForce)
     stats.value = {
       pdf: data.pdf,
       json: data.json,
@@ -240,24 +214,13 @@ async function loadStats() {
       anuladas: data.anuladas || 0,
       pairedByFolder: data.pairedByFolder,
     }
+    statsLoaded.value = true
   } catch (err) {
     console.error('Error loading stats:', err)
     error.value = err instanceof Error ? err.message : 'Error desconocido'
   } finally {
     loading.value = false
   }
-}
-
-// Aplicar filtro de fechas
-function applyDateFilter() {
-  loadStats()
-}
-
-// Limpiar filtro de fechas
-function clearDateFilter() {
-  dateFrom.value = ''
-  dateTo.value = ''
-  loadStats()
 }
 
 const chartData = computed(() => {
