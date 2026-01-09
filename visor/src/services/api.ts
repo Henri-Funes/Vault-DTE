@@ -12,6 +12,7 @@ export interface FileInfo {
   modifiedDate: string
   createdDate: string
   emissionDate?: string | null // Fecha de emisión desde el JSON
+  codigoGeneracion?: string | null // Código de generación de la factura
 }
 
 export interface FolderInfo {
@@ -98,17 +99,30 @@ export async function getFolderFiles(
   folderName: string,
   dateFrom?: string,
   dateTo?: string,
+  limit?: number,
+  page?: number,
 ): Promise<{
   folder: string
   path: string
   files: FileInfo[]
   count: number
+  pagination?: {
+    currentPage: number
+    totalPages: number
+    totalFiles: number
+    totalFacturas: number
+    limit: number
+    hasNextPage: boolean
+    hasPrevPage: boolean
+  }
 }> {
   let endpoint = `/backup/folder/${folderName}`
   const params = new URLSearchParams()
 
   if (dateFrom) params.append('dateFrom', dateFrom)
   if (dateTo) params.append('dateTo', dateTo)
+  if (limit) params.append('limit', limit.toString())
+  if (page) params.append('page', page.toString())
 
   if (params.toString()) {
     endpoint += `?${params.toString()}`

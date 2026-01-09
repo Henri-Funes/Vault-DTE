@@ -337,37 +337,252 @@ function backToClientes() {
 
 // Abrir archivo
 async function openFile(file: any) {
-  console.log('Abriendo archivo:', file)
-
   try {
-    // Normalizar extensión: quitar punto y convertir a minúsculas
     const extension = file.extension.toLowerCase().replace(/^\./, '')
-
-    console.log('Extension detectada:', extension)
 
     // Verificar si es un tipo de archivo soportado
     if (['pdf', 'json', 'xml', 'txt'].includes(extension)) {
-      // Llamar al backend para obtener el archivo
-      const response = await fetch('/api/backup/open-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: file.path }),
-      })
+      // Construir parámetros para el endpoint
+      const params = new URLSearchParams()
 
-      if (!response.ok) {
-        throw new Error('Error al cargar el archivo')
+      // Para PDF y JSON, incluir siempre ambos parámetros si están disponibles
+      if (extension === 'pdf' || extension === 'json') {
+        // Incluir codigoGeneracion si está disponible
+        if (file.codigoGeneracion) {
+          params.append('codigoGeneracion', file.codigoGeneracion)
+        }
+        // Incluir path si está disponible
+        if (file.path) {
+          params.append('path', file.path)
+        }
+
+        // Validar que al menos uno esté presente
+        if (!file.codigoGeneracion && !file.path) {
+          throw new Error('No se puede abrir el archivo: falta path o codigoGeneracion')
+        }
+      } else {
+        // Para otros tipos (xml, txt), preferir codigoGeneracion si está disponible, sino usar path
+        if (file.codigoGeneracion) {
+          params.append('codigoGeneracion', file.codigoGeneracion)
+        } else if (file.path) {
+          params.append('path', file.path)
+        } else {
+          throw new Error('No se puede abrir el archivo: falta path o codigoGeneracion')
+        }
       }
 
+      // Para PDF, usar visor personalizado con PDF.js
       if (extension === 'pdf') {
-        // Abrir PDF en nueva pestaña
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        window.open(url, '_blank')
 
-        // Liberar el objeto URL después de un tiempo
-        setTimeout(() => window.URL.revokeObjectURL(url), 100)
-      } else if (extension === 'json') {
-        // Mostrar JSON formateado en nueva ventana
+        // Obtener el PDF como blob
+        const response = await fetch(`/api/file/content?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error(`Error al cargar PDF: ${response.statusText}`)
+        }
+
+        const blob = await response.blob()
+        const blobUrl = URL.createObjectURL(blob)
+
+        // Crear una nueva ventana con un visor PDF usando PDF.js
+        const pdfWindow = window.open('', '_blank')
+        if (pdfWindow) {
+          pdfWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${file.name}</title>
+              <meta charset="UTF-8">
+              <style>
+                body {
+                  margin: 0;
+                  padding: 0;
+                  background-color: #525252;
+                  font-family: Arial, sans-serif;
+                }
+                #pdf-container {
+                  width: 100%;
+                  height: 100vh;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  overflow: auto;
+                }
+                #pdf-viewer {
+                  background-color: white;
+                  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                  margin: 20px;
+                }
+                #toolbar {
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  right: 0;
+                  background-color: #333;
+                  color: white;
+                  padding: 10px;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  z-index: 1000;
+                }
+                button {
+                  background-color: #4CAF50;
+                  color: white;
+                  border: none;
+                  padding: 8px 16px;
+                  cursor: pointer;
+                  border-radius: 4px;
+                  margin: 0 5px;
+                }
+                button:hover {
+                  background-color: #45a049;
+                }
+                button:disabled {
+                  background-color: #666;
+                  cursor: not-allowed;
+                }
+                #page-info {
+                  margin: 0 20px;
+                }
+                #canvas-container {
+                  margin-top: 60px;
+                }
+              </style>
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>
+            </head>
+            <body>
+              <div id="toolbar">
+                <div>
+                  <button id="prev-page">← Anterior</button>
+                  <span id="page-info">Página <span id="page-num"></span> de <span id="page-count"></span></span>
+                  <button id="next-page">Siguiente →</button>
+                </div>
+                <div>
+                  <button id="zoom-in">Zoom +</button>
+                  <button id="zoom-out">Zoom -</button>
+                  <button id="download">📥 Descargar</button>
+                </div>
+              </div>
+              <div id="pdf-container">
+                <div id="canvas-container"></div>
+              </div>
+              <script>
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                const pdfUrl = '${blobUrl}';
+                let pdfDoc = null;
+                let pageNum = 1;
+                let pageRendering = false;
+                let pageNumPending = null;
+                let scale = 1.5;
+
+                const canvasContainer = document.getElementById('canvas-container');
+                const pageNumSpan = document.getElementById('page-num');
+                const pageCountSpan = document.getElementById('page-count');
+                const prevButton = document.getElementById('prev-page');
+                const nextButton = document.getElementById('next-page');
+                const zoomInButton = document.getElementById('zoom-in');
+                const zoomOutButton = document.getElementById('zoom-out');
+                const downloadButton = document.getElementById('download');
+
+                function renderPage(num) {
+                  pageRendering = true;
+                  pdfDoc.getPage(num).then(function(page) {
+                    const viewport = page.getViewport({ scale: scale });
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'pdf-viewer';
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    canvasContainer.innerHTML = '';
+                    canvasContainer.appendChild(canvas);
+
+                    const renderContext = {
+                      canvasContext: context,
+                      viewport: viewport
+                    };
+
+                    const renderTask = page.render(renderContext);
+                    renderTask.promise.then(function() {
+                      pageRendering = false;
+                      if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                      }
+                    });
+                  });
+
+                  pageNumSpan.textContent = num;
+                  prevButton.disabled = (num <= 1);
+                  nextButton.disabled = (num >= pdfDoc.numPages);
+                }
+
+                function queueRenderPage(num) {
+                  if (pageRendering) {
+                    pageNumPending = num;
+                  } else {
+                    renderPage(num);
+                  }
+                }
+
+                prevButton.addEventListener('click', function() {
+                  if (pageNum <= 1) return;
+                  pageNum--;
+                  queueRenderPage(pageNum);
+                });
+
+                nextButton.addEventListener('click', function() {
+                  if (pageNum >= pdfDoc.numPages) return;
+                  pageNum++;
+                  queueRenderPage(pageNum);
+                });
+
+                zoomInButton.addEventListener('click', function() {
+                  scale += 0.25;
+                  queueRenderPage(pageNum);
+                });
+
+                zoomOutButton.addEventListener('click', function() {
+                  if (scale > 0.5) {
+                    scale -= 0.25;
+                    queueRenderPage(pageNum);
+                  }
+                });
+
+                downloadButton.addEventListener('click', function() {
+                  const a = document.createElement('a');
+                  a.href = pdfUrl;
+                  a.download = '${file.name}';
+                  a.click();
+                });
+
+                pdfjsLib.getDocument(pdfUrl).promise.then(function(pdfDoc_) {
+                  pdfDoc = pdfDoc_;
+                  pageCountSpan.textContent = pdfDoc.numPages;
+                  renderPage(pageNum);
+                }).catch(function(error) {
+                  console.error('Error al cargar PDF:', error);
+                  canvasContainer.innerHTML = '<p style="color: white; padding: 20px;">Error al cargar el PDF: ' + error.message + '</p>';
+                });
+              <\/script>
+            </body>
+            </html>
+          `)
+          pdfWindow.document.close()
+        }
+        return // Salir temprano
+      }
+
+      // Para otros tipos de archivo, hacer fetch y procesar
+      const response = await fetch(`/api/file/content?${params.toString()}`)
+
+      if (!response.ok) {
+        throw new Error(`Error al cargar archivo: ${response.statusText}`)
+      }
+
+      if (extension === 'json') {
+        // Para JSON, obtener datos y mostrar en ventana formateada
         const jsonData = await response.json()
         const newWindow = window.open('', '_blank')
         if (newWindow) {
