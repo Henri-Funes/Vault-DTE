@@ -1,7 +1,12 @@
 <template>
   <div class="bg-white rounded-xl shadow-lg p-6 w-full">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-slate-800">📊 Estadísticas</h2>
+      <div>
+        <h2 class="text-2xl font-bold text-slate-800">📊 Estadísticas</h2>
+        <p v-if="lastUpdate" class="text-xs text-slate-500 mt-1">
+          Última actualización: {{ lastUpdate }}
+        </p>
+      </div>
       <button
         @click="loadStats(true)"
         class="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
@@ -169,6 +174,7 @@ import { computed, onMounted, ref } from 'vue'
 const loading = ref(true)
 const error = ref<string | null>(null)
 const statsLoaded = ref(false)
+const lastUpdate = ref<string>('')
 
 // Datos de estadísticas
 const stats = ref({
@@ -215,6 +221,17 @@ async function loadStats(forceRefresh = false) {
       pairedByFolder: data.pairedByFolder,
     }
     statsLoaded.value = true
+
+    // Actualizar timestamp
+    const now = new Date()
+    lastUpdate.value = now.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
   } catch (err) {
     console.error('Error loading stats:', err)
     error.value = err instanceof Error ? err.message : 'Error desconocido'

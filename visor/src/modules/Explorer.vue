@@ -37,7 +37,7 @@
       </div>
     </div>
 
-    <!-- Filtro de fechas -->
+    <!-- Filtro de fechas y límite -->
     <div class="mb-4 bg-slate-50 rounded-lg p-4 border border-slate-200">
       <div class="flex items-center gap-4 flex-wrap">
         <div class="flex items-center gap-2">
@@ -55,6 +55,18 @@
             type="date"
             class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
           />
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-sm font-medium text-slate-800">📋 Mostrar:</label>
+          <select
+            v-model="limit"
+            @change="changePage(1)"
+            class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm text-slate-800"
+          >
+            <option :value="100">100</option>
+            <option :value="300">300</option>
+            <option :value="500">500</option>
+          </select>
         </div>
         <button
           @click="applyDateFilter"
@@ -161,9 +173,38 @@
       </div>
     </div>
 
-    <!-- Información -->
+    <!-- Paginación -->
     <div
-      v-if="!loading && !error"
+      v-if="!loading && !error && pagination"
+      class="mt-4 flex items-center justify-between border-t border-gray-200 pt-4"
+    >
+      <div class="text-sm text-slate-600">
+        Mostrando {{ filteredFiles.length }} archivos de {{ pagination.totalFiles }} totales ({{
+          pagination.totalFacturas
+        }}
+        facturas) • Página {{ pagination.currentPage }} de {{ pagination.totalPages }}
+      </div>
+      <div class="flex gap-2">
+        <button
+          @click="changePage(pagination.currentPage - 1)"
+          :disabled="!pagination.hasPrevPage"
+          class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        >
+          ← Anterior
+        </button>
+        <button
+          @click="changePage(pagination.currentPage + 1)"
+          :disabled="!pagination.hasNextPage"
+          class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        >
+          Siguiente →
+        </button>
+      </div>
+    </div>
+
+    <!-- Información (para casos sin paginación) -->
+    <div
+      v-if="!loading && !error && !pagination"
       class="mt-4 flex items-center justify-between text-sm text-slate-600"
     >
       <span>Mostrando {{ filteredFiles.length }} de {{ allFiles.length }} archivos</span>
@@ -187,6 +228,9 @@ const error = ref<string | null>(null)
 const dateFrom = ref('')
 const dateTo = ref('')
 const isBackendFiltered = ref(false) // Indica si los archivos ya vienen filtrados del backend
+const limit = ref(100) // Límite de archivos por página
+const currentPage = ref(1) // Página actual
+const pagination = ref<any>(null) // Información de paginación del backend
 
 // Función para formatear nombres de carpetas
 const formatFolderName = (folderName: string): string => {
@@ -282,21 +326,19 @@ async function loadFolderFiles() {
   }
 
   try {
-    // Si hay filtro de fechas activo, hacer petición con filtro
-    if (dateFrom.value || dateTo.value) {
-      loading.value = true
-      const folderData = await getFolderFiles(selectedFolder.value, dateFrom.value, dateTo.value)
-      allFiles.value = folderData.files
-      isBackendFiltered.value = true // Marcar que vienen filtrados del backend
-      loading.value = false
-    } else {
-      // Sin filtro, usar datos del caché
-      const folder = folders.value.find((f) => f.name === selectedFolder.value)
-      if (folder) {
-        allFiles.value = folder.files
-        isBackendFiltered.value = false // Marcar que NO vienen filtrados
-      }
-    }
+    loading.value = true
+    // Siempre llamar al backend para obtener archivos actualizados desde MongoDB con paginación
+    const folderData = await getFolderFiles(
+      selectedFolder.value,
+      dateFrom.value || undefined,
+      dateTo.value || undefined,
+      limit.value,
+      currentPage.value,
+    )
+    allFiles.value = folderData.files
+    pagination.value = folderData.pagination // Guardar info de paginación
+    isBackendFiltered.value = !!(dateFrom.value || dateTo.value) // Marcar si vienen filtrados
+    loading.value = false
   } catch (err) {
     console.error('Error cargando archivos:', err)
     error.value = err instanceof Error ? err.message : 'Error desconocido'
@@ -306,6 +348,8 @@ async function loadFolderFiles() {
 
 // Observar cambios en la carpeta seleccionada
 watch(selectedFolder, () => {
+  // Resetear página al cambiar carpeta
+  currentPage.value = 1
   // Solo recargar automáticamente si NO hay filtro de fechas
   if (!dateFrom.value && !dateTo.value) {
     loadFolderFiles()
@@ -318,16 +362,21 @@ async function applyDateFilter() {
     return
   }
 
-  console.log('🔍 Aplicando filtro de fechas:', { dateFrom: dateFrom.value, dateTo: dateTo.value })
+  currentPage.value = 1
   await loadFolderFiles()
 }
 
-// Limpiar filtro de fechas
 function clearDateFilter() {
   dateFrom.value = ''
   dateTo.value = ''
-  isBackendFiltered.value = false // Resetear flag
-  // Recargar archivos sin filtro
+  isBackendFiltered.value = false
+  currentPage.value = 1
+  loadFolderFiles()
+}
+
+// Cambiar de página
+function changePage(page: number) {
+  currentPage.value = page
   loadFolderFiles()
 }
 
@@ -368,36 +417,250 @@ const formatDate = (dateString: string) => {
 }
 
 const openFile = async (file: FileInfo) => {
-  console.log('Abriendo archivo:', file)
-
   try {
-    // Normalizar extensión: quitar punto y convertir a minúsculas
     const extension = file.extension.toLowerCase().replace(/^\./, '')
-
-    console.log('Extension detectada:', extension)
 
     // Verificar si es un tipo de archivo soportado
     if (['pdf', 'json', 'xml', 'txt'].includes(extension)) {
-      // Llamar al backend para obtener el archivo
-      const response = await fetch('/api/backup/open-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: file.path }),
-      })
+      // Construir parámetros para el endpoint
+      const params = new URLSearchParams()
 
-      if (!response.ok) {
-        throw new Error('Error al cargar el archivo')
+      // Para PDF y JSON, incluir siempre ambos parámetros si están disponibles
+      if (extension === 'pdf' || extension === 'json') {
+        // Incluir codigoGeneracion si está disponible
+        if (file.codigoGeneracion) {
+          params.append('codigoGeneracion', file.codigoGeneracion)
+        }
+        // Incluir path si está disponible
+        if (file.path) {
+          params.append('path', file.path)
+        }
+
+        // Validar que al menos uno esté presente
+        if (!file.codigoGeneracion && !file.path) {
+          throw new Error('No se puede abrir el archivo: falta path o codigoGeneracion')
+        }
+      } else {
+        // Para otros tipos (xml, txt), preferir codigoGeneracion si está disponible, sino usar path
+        if (file.codigoGeneracion) {
+          params.append('codigoGeneracion', file.codigoGeneracion)
+        } else if (file.path) {
+          params.append('path', file.path)
+        } else {
+          throw new Error('No se puede abrir el archivo: falta path o codigoGeneracion')
+        }
       }
 
+      // Para PDF, usar visor personalizado con PDF.js
       if (extension === 'pdf') {
-        // Abrir PDF en nueva pestaña
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        window.open(url, '_blank')
+        // Obtener el PDF como blob
+        const response = await fetch(`/api/file/content?${params.toString()}`)
+        if (!response.ok) {
+          throw new Error(`Error al cargar PDF: ${response.statusText}`)
+        }
 
-        // Liberar el objeto URL después de un tiempo
-        setTimeout(() => window.URL.revokeObjectURL(url), 100)
-      } else if (extension === 'json') {
+        const blob = await response.blob()
+        const blobUrl = URL.createObjectURL(blob)
+
+        // Crear una nueva ventana con un visor PDF usando PDF.js
+        const pdfWindow = window.open('', '_blank')
+        if (pdfWindow) {
+          pdfWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>${file.name}</title>
+              <meta charset="UTF-8">
+              <style>
+                body {
+                  margin: 0;
+                  padding: 0;
+                  background-color: #525252;
+                  font-family: Arial, sans-serif;
+                }
+                #pdf-container {
+                  width: 100%;
+                  height: 100vh;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  overflow: auto;
+                }
+                #pdf-viewer {
+                  background-color: white;
+                  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                  margin: 20px;
+                }
+                #toolbar {
+                  position: fixed;
+                  top: 0;
+                  left: 0;
+                  right: 0;
+                  background-color: #333;
+                  color: white;
+                  padding: 10px;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  z-index: 1000;
+                }
+                button {
+                  background-color: #4CAF50;
+                  color: white;
+                  border: none;
+                  padding: 8px 16px;
+                  cursor: pointer;
+                  border-radius: 4px;
+                  margin: 0 5px;
+                }
+                button:hover {
+                  background-color: #45a049;
+                }
+                button:disabled {
+                  background-color: #666;
+                  cursor: not-allowed;
+                }
+                #page-info {
+                  margin: 0 20px;
+                }
+                #canvas-container {
+                  margin-top: 60px;
+                }
+              </style>
+              <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"><\/script>
+            </head>
+            <body>
+              <div id="toolbar">
+                <div>
+                  <button id="prev-page">← Anterior</button>
+                  <span id="page-info">Página <span id="page-num"></span> de <span id="page-count"></span></span>
+                  <button id="next-page">Siguiente →</button>
+                </div>
+                <div>
+                  <button id="zoom-in">Zoom +</button>
+                  <button id="zoom-out">Zoom -</button>
+                  <button id="download">📥 Descargar</button>
+                </div>
+              </div>
+              <div id="pdf-container">
+                <div id="canvas-container"></div>
+              </div>
+              <script>
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+                const pdfUrl = '${blobUrl}';
+                let pdfDoc = null;
+                let pageNum = 1;
+                let pageRendering = false;
+                let pageNumPending = null;
+                let scale = 1.5;
+
+                const canvasContainer = document.getElementById('canvas-container');
+                const pageNumSpan = document.getElementById('page-num');
+                const pageCountSpan = document.getElementById('page-count');
+                const prevButton = document.getElementById('prev-page');
+                const nextButton = document.getElementById('next-page');
+                const zoomInButton = document.getElementById('zoom-in');
+                const zoomOutButton = document.getElementById('zoom-out');
+                const downloadButton = document.getElementById('download');
+
+                function renderPage(num) {
+                  pageRendering = true;
+                  pdfDoc.getPage(num).then(function(page) {
+                    const viewport = page.getViewport({ scale: scale });
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'pdf-viewer';
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    canvasContainer.innerHTML = '';
+                    canvasContainer.appendChild(canvas);
+
+                    const renderContext = {
+                      canvasContext: context,
+                      viewport: viewport
+                    };
+
+                    const renderTask = page.render(renderContext);
+                    renderTask.promise.then(function() {
+                      pageRendering = false;
+                      if (pageNumPending !== null) {
+                        renderPage(pageNumPending);
+                        pageNumPending = null;
+                      }
+                    });
+                  });
+
+                  pageNumSpan.textContent = num;
+                  prevButton.disabled = (num <= 1);
+                  nextButton.disabled = (num >= pdfDoc.numPages);
+                }
+
+                function queueRenderPage(num) {
+                  if (pageRendering) {
+                    pageNumPending = num;
+                  } else {
+                    renderPage(num);
+                  }
+                }
+
+                prevButton.addEventListener('click', function() {
+                  if (pageNum <= 1) return;
+                  pageNum--;
+                  queueRenderPage(pageNum);
+                });
+
+                nextButton.addEventListener('click', function() {
+                  if (pageNum >= pdfDoc.numPages) return;
+                  pageNum++;
+                  queueRenderPage(pageNum);
+                });
+
+                zoomInButton.addEventListener('click', function() {
+                  scale += 0.25;
+                  queueRenderPage(pageNum);
+                });
+
+                zoomOutButton.addEventListener('click', function() {
+                  if (scale > 0.5) {
+                    scale -= 0.25;
+                    queueRenderPage(pageNum);
+                  }
+                });
+
+                downloadButton.addEventListener('click', function() {
+                  const a = document.createElement('a');
+                  a.href = pdfUrl;
+                  a.download = '${file.name}';
+                  a.click();
+                });
+
+                pdfjsLib.getDocument(pdfUrl).promise.then(function(pdfDoc_) {
+                  pdfDoc = pdfDoc_;
+                  pageCountSpan.textContent = pdfDoc.numPages;
+                  renderPage(pageNum);
+                }).catch(function(error) {
+                  console.error('Error al cargar PDF:', error);
+                  canvasContainer.innerHTML = '<p style="color: white; padding: 20px;">Error al cargar el PDF: ' + error.message + '</p>';
+                });
+              <\/script>
+            </body>
+            </html>
+          `)
+          pdfWindow.document.close()
+        }
+        return // Salir temprano
+      }
+
+      // Para otros tipos, hacer fetch y procesar la respuesta
+      const response = await fetch(`/api/file/content?${params.toString()}`)
+
+      if (!response.ok) {
+        throw new Error(`Error al cargar archivo: ${response.statusText}`)
+      }
+
+      if (extension === 'json') {
         // Mostrar JSON formateado en nueva ventana
         const jsonData = await response.json()
         const newWindow = window.open('', '_blank')

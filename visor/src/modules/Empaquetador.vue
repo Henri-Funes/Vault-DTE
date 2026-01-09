@@ -250,7 +250,7 @@
 </template>
 
 <script setup lang="ts">
-import { getBackupStructure, type FileInfo, type FolderInfo } from '@/services/api'
+import { getBackupStructure, getFolderFiles, type FileInfo, type FolderInfo } from '@/services/api'
 import { computed, onMounted, ref } from 'vue'
 
 const loading = ref(true)
@@ -308,14 +308,24 @@ function selectAllFolders() {
 }
 
 // Abrir carpeta para ver archivos
-function openFolder(folderName: string) {
+async function openFolder(folderName: string) {
   currentFolder.value = folderName
-  const folder = folders.value.find((f) => f.name === folderName)
-  if (folder) {
-    currentFiles.value = folder.files
-  }
-  selectedFiles.value = []
   searchQuery.value = ''
+  selectedFiles.value = []
+
+  // Cargar archivos de la carpeta desde MongoDB
+  try {
+    loading.value = true
+    const folderData = await getFolderFiles(folderName, undefined, undefined, 10000) // Límite alto para empaquetador
+    currentFiles.value = folderData.files
+    console.log(`✅ ${folderData.files.length} archivos cargados para ${folderName}`)
+  } catch (err) {
+    console.error('Error cargando archivos:', err)
+    error.value = err instanceof Error ? err.message : 'Error desconocido'
+    currentFiles.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
 // Toggle selección de archivo
@@ -398,11 +408,26 @@ async function downloadFiles() {
   downloading.value = true
 
   try {
+    // Extraer códigos de generación de los archivos seleccionados (solo JSON)
+    const codigosGeneracion = selectedFiles.value
+      .filter((f) => f.extension === '.json' || f.extension === 'json')
+      .map((f) => {
+        // Intentar obtener codigoGeneracion si existe
+        if (f.codigoGeneracion) {
+          return f.codigoGeneracion
+        }
+        // Si no, extraer del nombre del archivo
+        return f.name.replace(/\.json$/i, '')
+      })
+      .filter((c) => c) // Eliminar valores nulos/vacíos
+
+    console.log('Descargando archivos con códigos:', codigosGeneracion)
+
     const response = await fetch('/api/backup/download-files', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        files: selectedFiles.value.map((f) => f.path),
+        codigosGeneracion,
         folderName: currentFolder.value,
       }),
     })
