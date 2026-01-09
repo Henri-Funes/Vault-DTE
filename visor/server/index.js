@@ -17,9 +17,8 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3001
-const HOST = process.env.HOST || '0.0.0.0' // 0.0.0.0 permite conexiones externas
+const HOST = process.env.HOST || '0.0.0.0'
 const NODE_ENV = process.env.NODE_ENV || 'development'
-const IS_ELECTRON = process.env.ELECTRON_APP === 'true'
 
 // Conectar a MongoDB al iniciar
 connectDB().catch((err) => {
@@ -27,26 +26,15 @@ connectDB().catch((err) => {
   // No hacer exit para que el servidor siga funcionando con archivos locales si falla MongoDB
 })
 
-// Función para determinar la ruta del backup
 function getBackupPath() {
-  // 1. Variable de entorno (tiene prioridad)
   if (process.env.BACKUP_PATH) {
     return process.env.BACKUP_PATH
   }
 
-  // 2. Si viene de Electron y hay una carpeta Backup junto al ejecutable
-  if (IS_ELECTRON) {
-    // La ruta será inyectada por Electron
-    const electronBackupPath = path.join(__dirname, '..', '..', 'Backup')
-    return electronBackupPath
-  }
-
-  // 3. Desarrollo: ruta específica para desarrollo local
   if (NODE_ENV === 'development') {
     return 'J:/Henri/Copia de seguridad de facturas(No borrar)/Backup'
   }
 
-  // 4. Producción: ruta del servidor Windows Server 2019
   return 'C:/zeta2/Henri/Copia de seguridad de facturas(No borrar)/Backup'
 }
 
@@ -55,7 +43,6 @@ const BACKUP_PATH = getBackupPath()
 
 console.log('📂 Configuración de rutas:')
 console.log('   - NODE_ENV:', NODE_ENV)
-console.log('   - IS_ELECTRON:', IS_ELECTRON)
 console.log('   - BACKUP_PATH:', BACKUP_PATH)
 console.log('   - __dirname:', __dirname)
 
@@ -1917,7 +1904,6 @@ app.get('/api/system/info', (req, res) => {
     success: true,
     data: {
       nodeEnv: NODE_ENV,
-      isElectron: IS_ELECTRON,
       backupPath: BACKUP_PATH,
       serverDir: __dirname,
       platform: process.platform,
@@ -1926,8 +1912,7 @@ app.get('/api/system/info', (req, res) => {
   })
 })
 
-// Ruta catch-all para SPA (debe estar al final, después de todas las rutas API)
-if (NODE_ENV === 'production' || IS_ELECTRON) {
+if (NODE_ENV === 'production') {
   app.use((req, res) => {
     // Solo servir index.html si no es una ruta de API
     if (!req.url.startsWith('/api')) {

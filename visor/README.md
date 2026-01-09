@@ -1,256 +1,93 @@
-# 📊 Visor de Backups Hermaco
+# Visor de Backups Hermaco
 
-Aplicación para visualizar y gestionar backups de facturas con soporte para:
+Sistema web para visualización y gestión de facturas de respaldo.
 
-- Explorador de archivos
-- Estadísticas en tiempo real
-- Empaquetador de facturas
-- **Versión portable para Windows** ⭐
-- **Detección automática de rutas de red** 🌐
+## 🚀 Requisitos
 
----
+- Node.js 18+
+- MongoDB 5.0+
+- npm o pnpm
 
-## 🚀 Inicio Rápido
+## 📦 Instalación
 
-### ⚙️ Configuración Inicial (Nuevo)
-
-Antes de ejecutar la aplicación, configura la ruta de backup:
-
-```powershell
-# Ejecutar script de configuración interactivo
-.\configure.ps1
-```
-
-O manualmente, copia y edita el archivo `.env`:
-
-```powershell
-Copy-Item .env.example .env
-# Edita .env con tu ruta de red
-```
-
-**Ver [CONFIGURACION-RED.md](CONFIGURACION-RED.md) para más detalles.**
-
-### ⭐ Versión Portable (Recomendado para producción)
-
-```powershell
-# 1. Instalar dependencias
+```bash
 npm install
-
-# 2. Configurar ruta de red
-.\configure.ps1
-
-# 3. Compilar portable
-.\build-portable.ps1
-
-# 4. El .exe estará en dist-electron/
-# Incluir el archivo .env con el ejecutable
 ```
 
-**Ver [PORTABLE-QUICKSTART.md](PORTABLE-QUICKSTART.md) para instrucciones de uso.**
+## 🔧 Configuración
 
----
+Crea un archivo `.env` con:
 
-## 🛠️ Desarrollo
+```env
+PORT=3001
+HOST=0.0.0.0
+NODE_ENV=development
+BACKUP_PATH=J:/Henri/Copia de seguridad de facturas(No borrar)/Backup
+MONGODB_URI=mongodb://adminHenri:123456@hermacoserver:27017/facturas-hermaco?authSource=admin
+```
 
-### Modo Desarrollo Web (sin Electron)
+## 🏃 Ejecución
 
-```sh
+### Desarrollo
+
+```bash
 npm run dev:all
 ```
 
-- **Frontend**: `http://localhost:5173`
-- **Backend API**: `http://localhost:3001`
+Esto inicia:
+- Frontend en `http://localhost:5173`
+- Backend en `http://localhost:3001`
 
-### Modo Desarrollo con Electron
+### Producción
 
-```powershell
-.\dev-electron.ps1
-# o
-npm run electron:dev
-```
-
-Abre una ventana de Electron con DevTools y hot-reload.
-
-### Comandos individuales:
-
-```sh
-npm run dev          # Solo frontend (Vite)
-npm run dev:server   # Solo backend (Express)
-```
-
----
-
-## 📦 Portable para Producción
-
-### Estructura Requerida
-
-```
-DiscoCompartido/
-├── Visor Hermaco-1.0.0-Portable.exe    ← Ejecutable
-└── Backup/                              ← Datos (IMPORTANTE)
-    ├── SA/
-    ├── SM/
-    ├── SS/
-    ├── gastos/
-    └── remisiones/
-```
-
-**⚠️ La carpeta `Backup` DEBE estar junto al .exe**
-
-### Compilar Portable
-
-```powershell
-# Método 1: Script automático
-.\build-portable.ps1
-
-# Método 2: Manual
+```bash
 npm run build
-npm run electron:build
+npm start
 ```
 
-### Uso en Red
-
-```
-\\servidor\compartido\VisorHermaco\
-├── Visor Hermaco-1.0.0-Portable.exe
-└── Backup\
-
-# Ejecutar desde cualquier PC:
-\\servidor\compartido\VisorHermaco\Visor Hermaco-1.0.0-Portable.exe
-```
-
----
-
-## 🎨 Stack Tecnológico
-
-### Frontend:
-
-- **Vue 3** - Framework frontend
-- **TypeScript** - Tipado estático
-- **UnoCSS** - Estilos utility-first (como Tailwind)
-- **Vue Router** - Navegación
-- **Pinia** - State management
-- **Vite** - Build tool y dev server (⚡ súper rápido)
-
-### Backend:
-
-- **Express** - Mini servidor Node.js
-- **CORS** - Comunicación frontend-backend
-- **Archiver** - Generación de archivos ZIP
-- **Sistema de Caché** - Caché inteligente de 5 minutos para alto rendimiento
-
-### Desktop:
-
-- **Electron** - App de escritorio multiplataforma
-- **electron-builder** - Empaquetado portable
-- **Sistema de rutas dinámicas** - Detecta ubicación automáticamente
-
----
-
-## 📁 Estructura del Proyecto
+## 📁 Estructura
 
 ```
 visor/
-├── src/
-│   ├── views/
-│   │   └── Home.vue           # Dashboard principal
-│   ├── modules/
-│   │   ├── Estadisticas.vue   # Módulo de estadísticas
-│   │   ├── Explorer.vue       # Explorador de archivos
-│   │   └── Empaquetador.vue   # Descarga ZIP/RAR
-│   ├── services/
-│   │   └── api.ts             # Cliente API
-│   ├── router/
-│   └── main.ts
-├── server/
-│   ├── index.js               # Backend Express
-│   └── README.md              # Documentación API
-└── package.json
+├── src/              # Código frontend (Vue 3)
+│   ├── components/   # Componentes reutilizables
+│   ├── modules/      # Módulos principales
+│   ├── router/       # Rutas
+│   ├── services/     # Servicios API
+│   └── stores/       # Estado global (Pinia)
+├── server/           # Código backend (Express)
+│   ├── config/       # Configuración DB
+│   ├── models/       # Modelos MongoDB
+│   └── index.js      # Servidor principal
+└── public/           # Archivos estáticos
 ```
 
-## 📦 Comandos Disponibles
+## 🛠️ Tecnologías
 
-```sh
-npm run dev:all      # Frontend + Backend
-npm run dev          # Solo frontend
-npm run dev:server   # Solo backend
-npm run build        # Build de producción
-npm run preview      # Preview del build
-npm run format       # Formatear código
-```
+- **Frontend**: Vue 3, TypeScript, UnoCSS, Vite
+- **Backend**: Express, MongoDB, Mongoose
+- **Utilidades**: Archiver (ZIP), CORS
 
-## 📂 Estructura de Backup Leída
+## 📝 Scripts
 
-El sistema lee archivos de: `C:\Dashboard\Backup\`
+- `npm run dev` - Servidor de desarrollo frontend
+- `npm run dev:server` - Servidor backend
+- `npm run dev:all` - Ambos servidores
+- `npm run build` - Build de producción
+- `npm run preview` - Preview del build
+- `npm run format` - Formatear código
 
-```
-Backup/
-├── gastos/                 - Facturas de gastos
-├── notas_de_credito/       - Notas de crédito
-├── remisiones/             - Facturas de remisión
-├── SA/                     - Facturas Santa Ana
-├── SM/                     - Facturas San Miguel
-└── SS/                     - Facturas San Salvador
-```
+## 🔑 Características
 
-## 🐳 Docker
+- ✅ Visualización de facturas (PDF/JSON)
+- ✅ Búsqueda y filtrado por fechas
+- ✅ Gestión de clientes
+- ✅ Facturas anuladas y notas de crédito
+- ✅ Empaquetador (ZIP)
+- ✅ Paginación configurable
+- ✅ MongoDB para consultas rápidas
+- ✅ Visor PDF integrado
 
-Para producción, la aplicación está completamente dockerizada:
+## 📄 Licencia
 
-```bash
-# Construir y ejecutar con Docker Compose
-docker-compose up -d
-
-# Ver logs
-docker-compose logs -f
-
-# Detener
-docker-compose down
-```
-
-**Características Docker:**
-
-- ✅ Frontend + Backend en un solo contenedor
-- ✅ Puerto único: 3001
-- ✅ Volumen montado en modo lectura (protege tus archivos)
-- ✅ Healthcheck automático
-- ✅ Caché persistente de 5 minutos
-- ✅ Actualización automática de datos
-
-📖 **Guía completa:** Ver [DOCKER.md](./DOCKER.md)
-
-## 🔧 Características Implementadas
-
-✅ Dashboard moderno con pestañas
-✅ Módulo de estadísticas por tipo de archivo y ubicación (H1-SA, H2-SM, H4-SS, Gastos, Remisiones)
-✅ Explorador con búsqueda y doble click
-✅ Apertura de PDFs en navegador (doble click)
-✅ Apertura de JSONs en Bloc de Notas (doble click)
-✅ Empaquetador con selección de carpetas completas
-✅ Empaquetador con navegación dentro de carpetas
-✅ Selección múltiple de archivos con checkboxes
-✅ Generación de archivos ZIP para descarga
-✅ Búsqueda de archivos dentro de carpetas
-✅ Backend Express para leer carpetas y generar ZIPs
-✅ **Sistema de caché inteligente (5 minutos) para alto rendimiento**
-✅ **Precarga de datos al iniciar el servidor**
-✅ API REST completa con endpoints de apertura y descarga
-✅ Diseño pantalla completa
-✅ Paleta de colores azul suave
-✅ Conteo de facturas pareadas (PDF + JSON con mismo DTE)
-✅ Panel de tamaño total en footer
-
-## 🎯 Próximos Pasos
-
-1. ✅ ~~Crear el mini-backend para leer carpetas~~
-2. ✅ ~~Crear componentes para listar archivos~~
-3. ✅ ~~Conectar componentes con API real~~
-4. ✅ ~~Implementar apertura de archivos (PDFs y JSONs)~~
-5. ✅ ~~Preparar Dockerfile y configuración Docker~~
-6. 🔄 Generar imagen Docker y desplegar
-
-## 📚 Documentación Adicional
-
-- [DOCKER.md](./DOCKER.md) - Guía completa de Docker
-- [QUICKSTART-DOCKER.md](./QUICKSTART-DOCKER.md) - Inicio rápido con Docker
-- [server/README.md](./server/README.md) - Documentación de la API
+Hermaco © 2026
