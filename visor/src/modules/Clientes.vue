@@ -5,7 +5,9 @@
       <div class="flex items-center justify-between mb-6">
         <div>
           <h2 class="text-2xl font-bold text-slate-800">👥 Clientes</h2>
-          <p class="text-sm text-slate-600 mt-1">Total: {{ clientesActuales.length }} clientes</p>
+          <p class="text-sm text-slate-600 mt-1">
+            Total: {{ clientesActuales.length }} clientes • 🔄 Auto-refresh (30s)
+          </p>
         </div>
         <button
           @click="loadClientes"
@@ -225,7 +227,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const searchQuery = ref('')
 const loading = ref(true)
@@ -236,6 +238,10 @@ const selectedCliente = ref<ClienteConDocumentos | null>(null)
 const loadingFacturas = ref(false)
 const facturasAnuladas = ref<any[]>([])
 const tipoDocumento = ref<'anuladas' | 'notas_de_credito'>('anuladas')
+
+// Auto-refresh
+const AUTO_REFRESH_INTERVAL = 30000 // 30 segundos
+let autoRefreshTimer: number | null = null
 
 interface ClienteConDocumentos {
   nombre: string
@@ -373,7 +379,6 @@ async function openFile(file: any) {
 
       // Para PDF, usar visor personalizado con PDF.js
       if (extension === 'pdf') {
-
         // Obtener el PDF como blob
         const response = await fetch(`/api/file/content?${params.toString()}`)
         if (!response.ok) {
@@ -751,7 +756,35 @@ watch(tipoDocumento, (newTipo) => {
   }
 })
 
+// Iniciar auto-refresh
+function startAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+  }
+
+  autoRefreshTimer = window.setInterval(() => {
+    console.log('🔄 Auto-refresh: actualizando clientes...')
+    if (tipoDocumento.value === 'anuladas') {
+      loadClientes()
+    } else {
+      loadNotasCredito()
+    }
+  }, AUTO_REFRESH_INTERVAL)
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
+  }
+}
+
 onMounted(() => {
   loadClientes()
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
