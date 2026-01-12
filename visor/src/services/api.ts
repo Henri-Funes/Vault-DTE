@@ -151,6 +151,17 @@ export async function getBackupStats(
   return fetchAPI<Stats>(endpoint)
 }
 
+export async function searchFacturas(query: string): Promise<{
+  files: FileInfo[]
+  count: number
+  query: string
+}> {
+  const params = new URLSearchParams()
+  params.append('query', query)
+
+  return fetchAPI(`/backup/search?${params.toString()}`)
+}
+
 // Health check del servidor
 export async function checkServerHealth(): Promise<{
   success: boolean

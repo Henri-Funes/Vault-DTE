@@ -4,7 +4,7 @@
       <div>
         <h2 class="text-2xl font-bold text-slate-800">📊 Estadísticas</h2>
         <p v-if="lastUpdate" class="text-xs text-slate-500 mt-1">
-          Última actualización: {{ lastUpdate }}
+          Última actualización: {{ lastUpdate }} • 🔄 Auto-refresh activo (30s)
         </p>
       </div>
       <button
@@ -169,12 +169,16 @@
 
 <script setup lang="ts">
 import { getBackupStats } from '@/services/api'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const loading = ref(true)
 const error = ref<string | null>(null)
 const statsLoaded = ref(false)
 const lastUpdate = ref<string>('')
+
+// Auto-refresh
+const AUTO_REFRESH_INTERVAL = 30000 // 30 segundos
+let autoRefreshTimer: number | null = null
 
 // Datos de estadísticas
 const stats = ref({
@@ -239,6 +243,36 @@ async function loadStats(forceRefresh = false) {
     loading.value = false
   }
 }
+
+// Iniciar auto-refresh
+function startAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+  }
+
+  autoRefreshTimer = window.setInterval(() => {
+    if (statsLoaded.value) {
+      console.log('🔄 Auto-refresh: actualizando estadísticas...')
+      loadStats(true)
+    }
+  }, AUTO_REFRESH_INTERVAL)
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
+  }
+}
+
+onMounted(() => {
+  loadStats(true)
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
+})
 
 const chartData = computed(() => {
   const total = stats.value.pdf + stats.value.json

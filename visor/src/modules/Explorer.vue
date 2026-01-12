@@ -1,13 +1,19 @@
 <template>
   <div class="bg-white rounded-xl shadow-lg p-6 w-full">
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-bold text-slate-800">📂 Explorador de Facturas</h2>
+      <div>
+        <h2 class="text-2xl font-bold text-slate-800">📂 Explorador de Facturas</h2>
+        <p v-if="lastUpdate" class="text-xs text-slate-500 mt-1">
+          Última actualización: {{ lastUpdate }} • 🔄 Auto-refresh activo (30s)
+        </p>
+      </div>
       <div class="flex gap-2">
         <input
           v-model="searchQuery"
+          @input="onSearchInput"
           type="text"
-          placeholder="Buscar factura..."
-          class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 w-64 text-slate-800"
+          placeholder="Ingrese un DTE"
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 w-64 text-slate-800 placeholder:text-slate-400 placeholder:opacity-60"
         />
         <button
           @click="loadData"
@@ -216,10 +222,12 @@
 </template>
 
 <script setup lang="ts">
-import { getBackupStructure, getFolderFiles, type FileInfo, type FolderInfo } from '@/services/api'
-import { computed, onMounted, ref, watch } from 'vue'
+import { getBackupStructure, getFolderFiles, searchFacturas, type FileInfo, type FolderInfo } from '@/services/api'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const searchQuery = ref('')
+const searchResults = ref<FileInfo[]>([])
+const isSearching = ref(false)
 const selectedFolder = ref<string>('')
 const folders = ref<FolderInfo[]>([])
 const allFiles = ref<FileInfo[]>([])
@@ -231,6 +239,11 @@ const isBackendFiltered = ref(false) // Indica si los archivos ya vienen filtrad
 const limit = ref(100) // Límite de archivos por página
 const currentPage = ref(1) // Página actual
 const pagination = ref<any>(null) // Información de paginación del backend
+const lastUpdate = ref<string>('')
+
+// Auto-refresh
+const AUTO_REFRESH_INTERVAL = 30000 // 30 segundos
+let autoRefreshTimer: number | null = null
 
 // Función para formatear nombres de carpetas
 const formatFolderName = (folderName: string): string => {
@@ -244,14 +257,11 @@ const formatFolderName = (folderName: string): string => {
 
 // Archivos filtrados por búsqueda, carpeta seleccionada y fechas de emisión
 const filteredFiles = computed(() => {
-  let files = allFiles.value
-
-  // Filtrar por búsqueda
-  if (searchQuery.value) {
-    files = files.filter((file) =>
-      file.name.toLowerCase().includes(searchQuery.value.toLowerCase()),
-    )
+  if (isSearching.value && searchQuery.value.trim().length > 0) {
+    return searchResults.value
   }
+
+  let files = allFiles.value
 
   // Filtrar por rango de fechas de EMISIÓN (solo si NO vienen ya filtrados del backend)
   if ((dateFrom.value || dateTo.value) && !isBackendFiltered.value) {
@@ -303,6 +313,14 @@ async function loadData() {
   try {
     const structure = await getBackupStructure()
     folders.value = structure.folders
+
+    // Actualizar timestamp
+    const now = new Date()
+    lastUpdate.value = now.toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
 
     // Por defecto, seleccionar la primera carpeta si existe
     if (structure.folders.length > 0 && !selectedFolder.value && structure.folders[0]) {
@@ -372,6 +390,36 @@ function clearDateFilter() {
   isBackendFiltered.value = false
   currentPage.value = 1
   loadFolderFiles()
+}
+
+let searchTimeout: number | null = null
+
+async function onSearchInput() {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+
+  const query = searchQuery.value.trim()
+
+  if (query.length === 0) {
+    isSearching.value = false
+    searchResults.value = []
+    return
+  }
+
+  searchTimeout = window.setTimeout(async () => {
+    try {
+      isSearching.value = true
+      loading.value = true
+      const response = await searchFacturas(query)
+      searchResults.value = response.files
+      loading.value = false
+    } catch (err) {
+      console.error('Error en búsqueda:', err)
+      error.value = 'Error al buscar facturas'
+      loading.value = false
+    }
+  }, 500)
 }
 
 // Cambiar de página
@@ -747,8 +795,39 @@ const openFile = async (file: FileInfo) => {
   }
 }
 
+// Iniciar auto-refresh
+function startAutoRefresh() {
+  // Limpiar timer anterior si existe
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+  }
+
+  // Configurar nuevo timer
+  autoRefreshTimer = window.setInterval(() => {
+    console.log('🔄 Auto-refresh: actualizando datos...')
+    loadData()
+  }, AUTO_REFRESH_INTERVAL)
+}
+
+// Detener auto-refresh
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
+  }
+}
+
 // Cargar datos al montar el componente
 onMounted(() => {
   loadData()
+  startAutoRefresh()
+})
+
+// Limpiar timer al desmontar
+onUnmounted(() => {
+  stopAutoRefresh()
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
 })
 </script>

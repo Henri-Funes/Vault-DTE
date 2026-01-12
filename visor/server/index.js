@@ -21,10 +21,19 @@ const HOST = process.env.HOST || '0.0.0.0'
 const NODE_ENV = process.env.NODE_ENV || 'development'
 
 // Conectar a MongoDB al iniciar
-connectDB().catch((err) => {
-  console.error('❌ Error fatal conectando a MongoDB:', err)
-  // No hacer exit para que el servidor siga funcionando con archivos locales si falla MongoDB
-})
+let mongoConnected = false
+connectDB()
+  .then(() => {
+    mongoConnected = true
+    console.log('✅ MongoDB conectado exitosamente')
+    console.log('📊 El servidor está listo para servir datos desde MongoDB')
+  })
+  .catch((err) => {
+    mongoConnected = false
+    console.error('❌ Error fatal conectando a MongoDB:', err)
+    console.error('⚠️  El servidor continuará pero NO podrá servir datos desde MongoDB')
+    console.error('⚠️  Verifica MONGODB_URI en el archivo .env')
+  })
 
 function getBackupPath() {
   if (process.env.BACKUP_PATH) {
@@ -52,6 +61,19 @@ if (NODE_ENV === 'development') {
 }
 
 app.use(express.json())
+
+// Middleware para verificar conexión a MongoDB en endpoints que lo requieren
+const requireMongoDB = (req, res, next) => {
+  if (!mongoConnected) {
+    console.error('⚠️ Intento de acceder a endpoint MongoDB sin conexión activa')
+    return res.status(503).json({
+      success: false,
+      error: 'Base de datos no disponible. Verifica la conexión a MongoDB.',
+      details: 'MONGODB_URI podría no estar configurada o el servidor MongoDB no está accesible',
+    })
+  }
+  next()
+}
 
 // Servir archivos estáticos del frontend en producción
 if (NODE_ENV === 'production') {
@@ -258,12 +280,14 @@ app.get('/api/backup/folder/:folderName', async (req, res) => {
 */
 
 // Endpoint para obtener estadísticas desde MongoDB
-app.get('/api/backup/stats', async (req, res) => {
+app.get('/api/backup/stats', requireMongoDB, async (req, res) => {
   try {
     console.log('📊 Obteniendo estadísticas desde MongoDB...')
+    console.log('🔌 Estado de conexión MongoDB:', connectDB ? 'Disponible' : 'No disponible')
 
     // Total de facturas
     const totalFacturas = await Factura.countDocuments()
+    console.log('📈 Total facturas encontradas:', totalFacturas)
 
     // Facturas con respaldo PDF
     const conPDF = await Factura.countDocuments({ tiene_respaldo_pdf: true })
@@ -342,9 +366,10 @@ app.get('/api/backup/stats', async (req, res) => {
 })
 
 // Endpoint para obtener estructura de carpetas (compatible con frontend)
-app.get('/api/backup/structure', async (req, res) => {
+app.get('/api/backup/structure', requireMongoDB, async (req, res) => {
   try {
     console.log('📂 Obteniendo estructura de carpetas desde MongoDB...')
+    console.log('🔌 Estado de conexión MongoDB:', connectDB ? 'Disponible' : 'No disponible')
 
     // Obtener conteo por categoría
     const porCategoria = await Factura.aggregate([
@@ -411,10 +436,13 @@ app.get('/api/backup/structure', async (req, res) => {
 })
 
 // Endpoint para obtener archivos de una carpeta desde MongoDB
-app.get('/api/backup/folder/:folderName', async (req, res) => {
+app.get('/api/backup/folder/:folderName', requireMongoDB, async (req, res) => {
   try {
     const { folderName } = req.params
     const { dateFrom, dateTo, limit = '100', page = '1' } = req.query
+    console.log(
+      `📁 Solicitando archivos de carpeta: ${folderName}, página: ${page}, límite: ${limit}`,
+    )
 
     const limitNum = parseInt(limit) || 100
     const pageNum = parseInt(page) || 1
@@ -466,7 +494,9 @@ app.get('/api/backup/folder/:folderName', async (req, res) => {
       const cleanBaseName = baseName.replace(/\.pdf$/i, '')
       const emissionDate = factura.identificacion?.fecEmi
       const codigoGeneracion = factura.identificacion?.codigoGeneracion
-      const pdfPath = factura.ruta_pdf ? factura.ruta_pdf.replace(/\\/g, '/') : `${folderName}/${cleanBaseName}.pdf`
+      const pdfPath = factura.ruta_pdf
+        ? factura.ruta_pdf.replace(/\\/g, '/')
+        : `${folderName}/${cleanBaseName}.pdf`
       const jsonPath = pdfPath.replace(/\.pdf$/i, '.json')
 
       files.push({
@@ -696,8 +726,10 @@ app.post('/api/backup/download-folders', async (req, res) => {
 
       // Agregar cada factura al ZIP
       for (const factura of facturas) {
-        const baseName = factura.nombre_archivo_pdf?.replace('.pdf', '') ||
-                        factura.identificacion?.codigoGeneracion || 'unknown'
+        const baseName =
+          factura.nombre_archivo_pdf?.replace('.pdf', '') ||
+          factura.identificacion?.codigoGeneracion ||
+          'unknown'
 
         // Agregar JSON (desde MongoDB)
         const jsonContent = JSON.stringify(factura, null, 2)
@@ -760,7 +792,9 @@ app.post('/api/backup/download-files', async (req, res) => {
 
     // Si se proporcionaron códigos de generación, buscar en MongoDB
     if (codigosGeneracion && codigosGeneracion.length > 0) {
-      console.log(`🔍 Buscando facturas por códigos de generación: ${codigosGeneracion.length} archivos`)
+      console.log(
+        `🔍 Buscando facturas por códigos de generación: ${codigosGeneracion.length} archivos`,
+      )
 
       for (const codigo of codigosGeneracion) {
         const factura = await Factura.findOne({
@@ -806,6 +840,96 @@ app.post('/api/backup/download-files', async (req, res) => {
     console.log('✅ ZIP generado exitosamente')
   } catch (error) {
     console.error('❌ Error creating ZIP:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+})
+
+app.get('/api/backup/search', async (req, res) => {
+  try {
+    const { query } = req.query
+
+    if (!query || query.trim().length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          files: [],
+          count: 0,
+        },
+      })
+    }
+
+    const searchTerm = query.trim()
+
+    const facturas = await Factura.find({
+      $or: [
+        { 'identificacion.codigoGeneracion': { $regex: searchTerm, $options: 'i' } },
+        { nombre_archivo_pdf: { $regex: searchTerm, $options: 'i' } },
+        { 'identificacion.numeroControl': { $regex: searchTerm, $options: 'i' } },
+      ],
+    })
+      .select(
+        'identificacion.codigoGeneracion identificacion.fecEmi receptor.nombre nombre_archivo_pdf ruta_pdf tiene_respaldo_pdf categoria_origen',
+      )
+      .limit(100)
+      .lean()
+
+    const files = []
+
+    facturas.forEach((factura) => {
+      const baseName =
+        factura.nombre_archivo_pdf || factura.identificacion?.codigoGeneracion || 'unknown'
+      const cleanBaseName = baseName.replace(/\.pdf$/i, '')
+      const emissionDate = factura.identificacion?.fecEmi
+      const codigoGeneracion = factura.identificacion?.codigoGeneracion
+      const pdfPath = factura.ruta_pdf
+        ? factura.ruta_pdf.replace(/\\/g, '/')
+        : `${factura.categoria_origen}/${cleanBaseName}.pdf`
+      const jsonPath = pdfPath.replace(/\.pdf$/i, '.json')
+
+      files.push({
+        name: `${cleanBaseName}.json`,
+        path: jsonPath,
+        size: 5000,
+        sizeFormatted: '5 KB',
+        type: 'json',
+        extension: 'json',
+        isDirectory: false,
+        modifiedDate: new Date().toISOString(),
+        createdDate: new Date().toISOString(),
+        emissionDate: emissionDate || null,
+        codigoGeneracion: codigoGeneracion || null,
+      })
+
+      if (factura.tiene_respaldo_pdf) {
+        files.push({
+          name: `${cleanBaseName}.pdf`,
+          path: pdfPath,
+          size: 50000,
+          sizeFormatted: '50 KB',
+          type: 'pdf',
+          extension: 'pdf',
+          isDirectory: false,
+          modifiedDate: new Date().toISOString(),
+          createdDate: new Date().toISOString(),
+          emissionDate: emissionDate || null,
+          codigoGeneracion: codigoGeneracion || null,
+        })
+      }
+    })
+
+    res.json({
+      success: true,
+      data: {
+        files,
+        count: files.length,
+        query: searchTerm,
+      },
+    })
+  } catch (error) {
+    console.error('❌ Error en búsqueda:', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -1412,13 +1536,53 @@ app.get('/api/mongodb/clientes', async (req, res) => {
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
-    message: 'Backend funcionando correctamente con MongoDB',
+    message: mongoConnected
+      ? 'Backend funcionando correctamente con MongoDB'
+      : 'Backend funcionando SIN conexión a MongoDB',
     timestamp: new Date().toISOString(),
     mongodb: {
-      connected: true,
-      database: 'facturas-hermaco',
+      connected: mongoConnected,
+      database: mongoConnected ? 'facturas-hermaco' : 'N/A',
+      uri: process.env.MONGODB_URI ? 'Configurada' : '❌ NO CONFIGURADA',
+    },
+    environment: {
+      NODE_ENV: process.env.NODE_ENV || 'development',
+      BACKUP_PATH: process.env.BACKUP_PATH || 'default',
     },
   })
+})
+
+// Endpoint para verificar si hay cambios recientes (últimos 30 segundos)
+app.get('/api/backup/check-updates', async (req, res) => {
+  try {
+    const { since } = req.query
+    const sinceDate = since ? new Date(since) : new Date(Date.now() - 30000) // Por defecto 30 segundos
+
+    // Contar facturas agregadas/modificadas desde la fecha indicada
+    const recentCount = await Factura.countDocuments({
+      migrado_en: { $gte: sinceDate },
+    })
+
+    // Obtener el último documento insertado
+    const ultimaFactura = await Factura.findOne()
+      .sort({ migrado_en: -1 })
+      .select('migrado_en identificacion.fecEmi')
+      .lean()
+
+    res.json({
+      success: true,
+      hasUpdates: recentCount > 0,
+      recentCount,
+      lastUpdate: ultimaFactura?.migrado_en || null,
+      timestamp: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.error('❌ Error checking updates:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
 })
 
 // ========== ENDPOINT ANTIGUO DESHABILITADO ==========
@@ -1654,7 +1818,10 @@ app.get('/api/clientes/:nombreCliente/anuladas', async (req, res) => {
     // Transformar facturas a formato de archivo para el frontend
     const facturasFormateadas = []
     for (const factura of facturas) {
-      const baseName = factura.nombre_archivo_pdf?.replace('.pdf', '') || factura.identificacion?.codigoGeneracion || 'sin-nombre'
+      const baseName =
+        factura.nombre_archivo_pdf?.replace('.pdf', '') ||
+        factura.identificacion?.codigoGeneracion ||
+        'sin-nombre'
 
       // JSON siempre existe (está en MongoDB)
       facturasFormateadas.push({
@@ -1726,7 +1893,10 @@ app.get('/api/clientes/:nombreCliente/notas-credito', async (req, res) => {
     // Transformar facturas a formato de archivo para el frontend
     const facturasFormateadas = []
     for (const factura of facturas) {
-      const baseName = factura.nombre_archivo_pdf?.replace('.pdf', '') || factura.identificacion?.codigoGeneracion || 'sin-nombre'
+      const baseName =
+        factura.nombre_archivo_pdf?.replace('.pdf', '') ||
+        factura.identificacion?.codigoGeneracion ||
+        'sin-nombre'
 
       // JSON siempre existe (está en MongoDB)
       facturasFormateadas.push({
