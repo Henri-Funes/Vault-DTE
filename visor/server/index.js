@@ -321,18 +321,17 @@ app.get('/api/backup/stats', requireMongoDB, async (req, res) => {
       else if (categoria === 'anuladas') anuladas = count
     })
 
-    // Facturas recientes (migradas ayer)
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
     yesterday.setHours(0, 0, 0, 0)
+
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
+    const yesterdayStr = yesterday.toISOString().split('T')[0]
+
     const recentFiles = await Factura.countDocuments({
-      migrado_en: {
-        $gte: yesterday,
-        $lt: today,
-      },
+      'identificacion.fecEmi': yesterdayStr,
     })
 
     const stats = {
