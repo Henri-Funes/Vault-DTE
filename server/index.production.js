@@ -42,6 +42,7 @@ function getBackupPath() {
     return process.env.BACKUP_PATH
   }
 
+  // Rutas genéricas de ejemplo - configurar con variables de entorno en producción
   if (NODE_ENV === 'development') {
     return 'J:/Henri/Copia de seguridad de facturas(No borrar)/Backup'
   }
@@ -1460,7 +1461,7 @@ app.get('/api/clientes', async (req, res) => {
 /* DESHABILITADO - Ahora se usa MongoDB
 app.get('/api/clientes/notas-credito', async (req, res) => {
   try {
-    // Ruta del archivo de clientes
+    // Ruta del archivo de clientes (rutas genéricas de ejemplo)
     const clientesPath =
       NODE_ENV === 'development'
         ? 'J:/Henri/Clientes/lista_clientes.json'
