@@ -1,0 +1,596 @@
+<template>
+  <div class="space-y-6">
+    <!-- Header con acción -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="text-3xl font-bold text-slate-900 flex items-center gap-3">
+          <BarChart3 :size="32" class="text-blue-600" />
+          Estadísticas
+        </h2>
+        <p v-if="lastUpdate" class="text-sm text-slate-500 mt-1 flex items-center gap-2">
+          <Clock :size="14" />
+          Última actualización: {{ lastUpdate }} • Auto-refresh activo (30s)
+        </p>
+      </div>
+      <button
+        @click="loadStats(true)"
+        class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-all font-medium border border-blue-200 hover:border-blue-300"
+      >
+        <RefreshCw :size="16" :class="{ 'animate-spin': loading }" />
+        Actualizar
+      </button>
+    </div>
+
+    <!-- Estado de carga -->
+    <div
+      v-if="loading && !statsLoaded"
+      class="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-slate-200"
+    >
+      <Loader2 :size="48" class="text-blue-500 animate-spin mb-4" />
+      <p class="text-slate-600 font-medium">Cargando estadísticas...</p>
+    </div>
+
+    <!-- Error -->
+    <div
+      v-else-if="error"
+      class="bg-red-50 border-2 border-red-200 rounded-xl p-6 flex items-start gap-4"
+    >
+      <AlertCircle :size="24" class="text-red-600 flex-shrink-0 mt-1" />
+      <div>
+        <p class="text-red-900 font-semibold text-lg mb-1">Error al cargar estadísticas</p>
+        <p class="text-red-700 text-sm">{{ error }}</p>
+      </div>
+    </div>
+
+    <!-- Contenido Principal -->
+    <div v-else-if="statsLoaded" class="space-y-6">
+      <!-- Métricas Principales - Estilo Dashboard Moderno -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Total Facturas -->
+        <Card class="border-l-4 border-l-blue-500 hover:shadow-lg">
+          <CardContent class="p-6">
+            <div class="flex items-start justify-between">
+              <div class="space-y-2">
+                <p class="text-sm font-medium text-slate-600 flex items-center gap-2">
+                  <FileText :size="16" />
+                  Total Facturas
+                </p>
+                <p class="text-3xl font-bold text-slate-900">
+                  {{ stats.pairedInvoices.toLocaleString() }}
+                </p>
+                <div class="flex items-center gap-2 text-xs">
+                  <div class="flex items-center gap-1 text-green-600">
+                    <TrendingUp :size="14" />
+                    <span class="font-medium">{{ recentPercentage }}%</span>
+                  </div>
+                  <span class="text-slate-500">recientes</span>
+                </div>
+              </div>
+              <div
+                class="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0"
+              >
+                <FileText :size="24" class="text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Archivos PDF -->
+        <Card class="border-l-4 border-l-red-500 hover:shadow-lg">
+          <CardContent class="p-6">
+            <div class="flex items-start justify-between">
+              <div class="space-y-2">
+                <p class="text-sm font-medium text-slate-600 flex items-center gap-2">
+                  <FileType :size="16" />
+                  Archivos PDF
+                </p>
+                <p class="text-3xl font-bold text-slate-900">{{ stats.pdf.toLocaleString() }}</p>
+                <div class="flex items-center gap-2 text-xs">
+                  <div
+                    class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium"
+                  >
+                    {{ pdfPercentage }}%
+                  </div>
+                  <span class="text-slate-500">del total</span>
+                </div>
+              </div>
+              <div
+                class="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0"
+              >
+                <FileType :size="24" class="text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Archivos JSON -->
+        <Card class="border-l-4 border-l-yellow-500 hover:shadow-lg">
+          <CardContent class="p-6">
+            <div class="flex items-start justify-between">
+              <div class="space-y-2">
+                <p class="text-sm font-medium text-slate-600 flex items-center gap-2">
+                  <Code :size="16" />
+                  Archivos JSON
+                </p>
+                <p class="text-3xl font-bold text-slate-900">{{ stats.json.toLocaleString() }}</p>
+                <div class="flex items-center gap-2 text-xs">
+                  <div
+                    class="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 font-medium"
+                  >
+                    {{ jsonPercentage }}%
+                  </div>
+                  <span class="text-slate-500">del total</span>
+                </div>
+              </div>
+              <div
+                class="h-12 w-12 rounded-lg bg-yellow-100 flex items-center justify-center flex-shrink-0"
+              >
+                <Code :size="24" class="text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Anuladas -->
+        <Card class="border-l-4 border-l-red-600 hover:shadow-lg">
+          <CardContent class="p-6">
+            <div class="flex items-start justify-between">
+              <div class="space-y-2">
+                <p class="text-sm font-medium text-slate-600 flex items-center gap-2">
+                  <XCircle :size="16" />
+                  Anuladas
+                </p>
+                <p class="text-3xl font-bold text-slate-900">{{ stats.anuladas.toLocaleString() }}</p>
+                <div class="flex items-center gap-2 text-xs">
+                  <div
+                    class="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium"
+                  >
+                    {{ anuladasPercentage }}%
+                  </div>
+                  <span class="text-slate-500">del total</span>
+                </div>
+              </div>
+              <div
+                class="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0"
+              >
+                <XCircle :size="24" class="text-red-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Distribución por Sucursal -->
+      <Card>
+        <CardHeader class="pb-3">
+          <CardTitle class="text-xl font-semibold text-slate-900 flex items-center gap-2">
+            <Building2 :size="24" />
+            Distribución por Sucursal
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- H1 - Santa Ana -->
+            <Card class="border-l-4 border-l-cyan-500 hover:shadow-lg">
+              <CardContent class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 rounded-lg bg-cyan-100 flex items-center justify-center">
+                      <Store :size="24" class="text-cyan-600" />
+                    </div>
+                    <div>
+                      <h3 class="text-lg font-bold text-slate-900">H1 - Santa Ana</h3>
+                      <p class="text-xs text-slate-500">Total: {{ stats.detallePorSucursal['H1 - Santa Ana'].total }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-3">
+                  <!-- Facturas -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <FileText :size="16" class="text-blue-600" />
+                      <span class="text-sm font-medium text-slate-700">Facturas</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H1 - Santa Ana'].facturas }}</span>
+                  </div>
+
+                  <!-- Gastos -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <DollarSign :size="16" class="text-orange-600" />
+                      <span class="text-sm font-medium text-slate-700">Gastos</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H1 - Santa Ana'].gastos }}</span>
+                  </div>
+
+                  <!-- Remisiones -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <Truck :size="16" class="text-pink-600" />
+                      <span class="text-sm font-medium text-slate-700">Remisiones</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H1 - Santa Ana'].remisiones }}</span>
+                  </div>
+
+                  <!-- Notas de Crédito -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <CreditCard :size="16" class="text-indigo-600" />
+                      <span class="text-sm font-medium text-slate-700">Notas Crédito</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H1 - Santa Ana'].notas_credito }}</span>
+                  </div>
+
+                  <!-- Anuladas -->
+                  <div class="flex items-center justify-between py-2">
+                    <div class="flex items-center gap-2">
+                      <XCircle :size="16" class="text-red-600" />
+                      <span class="text-sm font-medium text-slate-700">Anuladas</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H1 - Santa Ana'].anuladas }}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <!-- H2 - San Miguel -->
+            <Card class="border-l-4 border-l-teal-500 hover:shadow-lg">
+              <CardContent class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center">
+                      <Store :size="24" class="text-teal-600" />
+                    </div>
+                    <div>
+                      <h3 class="text-lg font-bold text-slate-900">H2 - San Miguel</h3>
+                      <p class="text-xs text-slate-500">Total: {{ stats.detallePorSucursal['H2 - San Miguel'].total }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-3">
+                  <!-- Facturas -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <FileText :size="16" class="text-blue-600" />
+                      <span class="text-sm font-medium text-slate-700">Facturas</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H2 - San Miguel'].facturas }}</span>
+                  </div>
+
+                  <!-- Gastos -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <DollarSign :size="16" class="text-orange-600" />
+                      <span class="text-sm font-medium text-slate-700">Gastos</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H2 - San Miguel'].gastos }}</span>
+                  </div>
+
+                  <!-- Remisiones -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <Truck :size="16" class="text-pink-600" />
+                      <span class="text-sm font-medium text-slate-700">Remisiones</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H2 - San Miguel'].remisiones }}</span>
+                  </div>
+
+                  <!-- Notas de Crédito -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <CreditCard :size="16" class="text-indigo-600" />
+                      <span class="text-sm font-medium text-slate-700">Notas Crédito</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H2 - San Miguel'].notas_credito }}</span>
+                  </div>
+
+                  <!-- Anuladas -->
+                  <div class="flex items-center justify-between py-2">
+                    <div class="flex items-center gap-2">
+                      <XCircle :size="16" class="text-red-600" />
+                      <span class="text-sm font-medium text-slate-700">Anuladas</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H2 - San Miguel'].anuladas }}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <!-- H4 - San Salvador -->
+            <Card class="border-l-4 border-l-emerald-500 hover:shadow-lg">
+              <CardContent class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="flex items-center gap-3">
+                    <div class="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Store :size="24" class="text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 class="text-lg font-bold text-slate-900">H4 - San Salvador</h3>
+                      <p class="text-xs text-slate-500">Total: {{ stats.detallePorSucursal['H4 - San Salvador'].total }}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="space-y-3">
+                  <!-- Facturas -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <FileText :size="16" class="text-blue-600" />
+                      <span class="text-sm font-medium text-slate-700">Facturas</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H4 - San Salvador'].facturas }}</span>
+                  </div>
+
+                  <!-- Gastos -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <DollarSign :size="16" class="text-orange-600" />
+                      <span class="text-sm font-medium text-slate-700">Gastos</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H4 - San Salvador'].gastos }}</span>
+                  </div>
+
+                  <!-- Remisiones -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <Truck :size="16" class="text-pink-600" />
+                      <span class="text-sm font-medium text-slate-700">Remisiones</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H4 - San Salvador'].remisiones }}</span>
+                  </div>
+
+                  <!-- Notas de Crédito -->
+                  <div class="flex items-center justify-between py-2 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                      <CreditCard :size="16" class="text-indigo-600" />
+                      <span class="text-sm font-medium text-slate-700">Notas Crédito</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H4 - San Salvador'].notas_credito }}</span>
+                  </div>
+
+                  <!-- Anuladas -->
+                  <div class="flex items-center justify-between py-2">
+                    <div class="flex items-center gap-2">
+                      <XCircle :size="16" class="text-red-600" />
+                      <span class="text-sm font-medium text-slate-700">Anuladas</span>
+                    </div>
+                    <span class="text-lg font-bold text-slate-900">{{ stats.detallePorSucursal['H4 - San Salvador'].anuladas }}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Gráfico de Distribución -->
+      <Card>
+        <CardHeader class="pb-3">
+          <CardTitle class="text-xl font-semibold text-slate-900 flex items-center gap-2">
+            <PieChart :size="24" />
+            Distribución por Tipo
+          </CardTitle>
+        </CardHeader>
+        <CardContent class="p-6">
+          <div class="space-y-4">
+            <div
+              v-for="(item, key) in chartDataArray"
+              :key="key"
+              class="group hover:bg-slate-50 rounded-lg p-3 transition-colors"
+            >
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-3">
+                  <component :is="item.icon" :size="18" :class="item.iconColor" />
+                  <span class="text-sm font-semibold text-slate-700">{{ item.label }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-slate-900">{{ item.value.toLocaleString() }}</span>
+                  <span class="text-xs text-slate-500 font-medium">{{ item.percentage }}%</span>
+                </div>
+              </div>
+              <div class="w-full bg-slate-200 rounded-full h-2.5">
+                <div
+                  :class="item.barColor"
+                  class="h-2.5 rounded-full transition-all duration-700 ease-out"
+                  :style="{ width: item.percentage + '%' }"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { getBackupStats } from '@/services/api'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import {
+  BarChart3,
+  Clock,
+  RefreshCw,
+  Loader2,
+  AlertCircle,
+  FileText,
+  TrendingUp,
+  FileType,
+  Code,
+  XCircle,
+  Building2,
+  Store,
+  DollarSign,
+  Truck,
+  CreditCard,
+  PieChart,
+} from 'lucide-vue-next'
+
+import Card from '@/components/ui/Card.vue'
+import CardHeader from '@/components/ui/CardHeader.vue'
+import CardContent from '@/components/ui/CardContent.vue'
+import CardTitle from '@/components/ui/CardTitle.vue'
+
+const loading = ref(false)
+const error = ref<string | null>(null)
+const statsLoaded = ref(false)
+const lastUpdate = ref<string>('')
+
+// Auto-refresh
+const AUTO_REFRESH_INTERVAL = 30000
+let autoRefreshTimer: number | null = null
+
+const stats = ref({
+  pdf: 0,
+  json: 0,
+  xml: 0,
+  images: 0,
+  other: 0,
+  total: 0,
+  totalSize: '0 B',
+  recentFiles: 0,
+  pairedInvoices: 0,
+  anuladas: 0,
+  pairedByFolder: {
+    SA: 0,
+    SM: 0,
+    SS: 0,
+    gastos: 0,
+    remisiones: 0,
+    notas_de_credito: 0,
+  },
+  detallePorSucursal: {
+    'H1 - Santa Ana': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 },
+    'H2 - San Miguel': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 },
+    'H4 - San Salvador': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 }
+  }
+})
+
+async function loadStats(forceRefresh = false) {
+  loading.value = true
+  error.value = null
+
+  try {
+    const shouldForce = forceRefresh || !statsLoaded.value
+    const data = await getBackupStats(undefined, undefined, shouldForce)
+    stats.value = {
+      pdf: data.pdf,
+      json: data.json,
+      xml: data.xml,
+      images: data.images,
+      other: data.other,
+      total: data.total,
+      totalSize: data.totalSizeFormatted,
+      recentFiles: data.recentFiles,
+      pairedInvoices: data.pairedInvoices,
+      anuladas: data.anuladas || 0,
+      pairedByFolder: data.pairedByFolder,
+      detallePorSucursal: data.detallePorSucursal || {
+        'H1 - Santa Ana': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 },
+        'H2 - San Miguel': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 },
+        'H4 - San Salvador': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 }
+      }
+    }
+    statsLoaded.value = true
+
+    const now = new Date()
+    lastUpdate.value = now.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch (err) {
+    console.error('Error loading stats:', err)
+    error.value = err instanceof Error ? err.message : 'Error desconocido'
+  } finally {
+    loading.value = false
+  }
+}
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer)
+  autoRefreshTimer = window.setInterval(() => {
+    if (statsLoaded.value) loadStats(true)
+  }, AUTO_REFRESH_INTERVAL)
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
+  }
+}
+
+onMounted(() => {
+  loadStats(true)
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
+})
+
+// Computed percentages
+const recentPercentage = computed(() => {
+  if (stats.value.pairedInvoices === 0) return 0
+  return Math.round((stats.value.recentFiles / stats.value.pairedInvoices) * 100)
+})
+
+const pdfPercentage = computed(() => {
+  if (stats.value.total === 0) return 0
+  return Math.round((stats.value.pdf / stats.value.total) * 100)
+})
+
+const jsonPercentage = computed(() => {
+  if (stats.value.total === 0) return 0
+  return Math.round((stats.value.json / stats.value.total) * 100)
+})
+
+const anuladasPercentage = computed(() => {
+  if (stats.value.pairedInvoices === 0) return 0
+  return Math.round((stats.value.anuladas / stats.value.pairedInvoices) * 100)
+})
+
+const chartDataArray = computed(() => {
+  const total = stats.value.total
+  return [
+    {
+      label: 'Archivos PDF',
+      value: stats.value.pdf,
+      percentage: total > 0 ? Math.round((stats.value.pdf / total) * 100) : 0,
+      icon: FileType,
+      iconColor: 'text-red-600',
+      barColor: 'bg-red-500',
+    },
+    {
+      label: 'Archivos JSON',
+      value: stats.value.json,
+      percentage: total > 0 ? Math.round((stats.value.json / total) * 100) : 0,
+      icon: Code,
+      iconColor: 'text-yellow-600',
+      barColor: 'bg-yellow-500',
+    },
+    {
+      label: 'Total Facturas',
+      value: stats.value.pairedInvoices,
+      percentage:
+        total > 0 ? Math.round((stats.value.pairedInvoices / total) * 100) : 0,
+      icon: FileText,
+      iconColor: 'text-green-600',
+      barColor: 'bg-green-500',
+    },
+    {
+      label: 'Recientes',
+      value: stats.value.recentFiles,
+      percentage: total > 0 ? Math.round((stats.value.recentFiles / total) * 100) : 0,
+      icon: TrendingUp,
+      iconColor: 'text-purple-600',
+      barColor: 'bg-purple-500',
+    },
+  ]
+})
+</script>
