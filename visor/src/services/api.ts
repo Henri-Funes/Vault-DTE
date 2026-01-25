@@ -52,17 +52,22 @@ export interface Stats {
     remisiones: number
     notas_de_credito: number
   }
-  byFolder: Record<
-    string,
-    {
-      pdf: number
-      json: number
-      xml: number
-      images: number
-      other: number
-      total: number
-    }
-  >
+  detallePorSucursal: {
+    'H1 - Santa Ana': { facturas: number; gastos: number; remisiones: number; notas_credito: number; anuladas: number; total: number }
+    'H2 - San Miguel': { facturas: number; gastos: number; remisiones: number; notas_credito: number; anuladas: number; total: number }
+    'H4 - San Salvador': { facturas: number; gastos: number; remisiones: number; notas_credito: number; anuladas: number; total: number }
+  }
+}
+
+export interface VentasPorSucursal {
+  periodo: number
+  fechaInicio: string
+  fechaFin: string
+  ventasPorSucursal: {
+    'H1 - Santa Ana': { totalVentas: number; facturas: number; anuladas: number; devuelto: number }
+    'H2 - San Miguel': { totalVentas: number; facturas: number; anuladas: number; devuelto: number }
+    'H4 - San Salvador': { totalVentas: number; facturas: number; anuladas: number; devuelto: number }
+  }
 }
 
 // Función helper para hacer peticiones
@@ -151,6 +156,11 @@ export async function getBackupStats(
   return fetchAPI<Stats>(endpoint)
 }
 
+// NUEVO: Obtener ventas por sucursal con período ajustable
+export async function getVentasPorSucursal(periodo: number = 12): Promise<VentasPorSucursal> {
+  const endpoint = `/backup/ventas-por-sucursal?periodo=${periodo}`
+  return fetchAPI<VentasPorSucursal>(endpoint)
+}
 export async function searchFacturas(query: string): Promise<{
   files: FileInfo[]
   count: number

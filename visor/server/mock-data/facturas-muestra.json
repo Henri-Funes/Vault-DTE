@@ -1,0 +1,1040 @@
+[
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-5JHMO5NI-408060175324027",
+      "codigoGeneracion": "9B454171-942F-494A-8BB3-4FAA62A46B2C",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-30",
+      "horEmi": "13:09:44",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "36",
+      "numDocumento": "18705568875451",
+      "nrc": "72739352",
+      "nombre": "Wilderman, Ankunding and Bradtke",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Usulután",
+        "municipio": "Usulután",
+        "complemento": "267 Hermann Points"
+      },
+      "telefono": "27852324",
+      "correo": "johanna.russel@gmail.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 20,
+        "codigo": "UEIHOD6H",
+        "descripcion": "Ferretería - Cemento Portland",
+        "uniMedida": 99,
+        "precioUni": 569.18,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 11383.6,
+        "ivaItem": 1479.87
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 11383.6,
+      "subTotalVentas": 11383.6,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 11383.6,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 12863.47,
+      "totalNoGravado": 0,
+      "totalPagar": 12863.47,
+      "totalLetras": "12863 DÓLARES CON 47/100 USD",
+      "totalIva": 1479.87,
+      "saldoFavor": 0,
+      "condicionOperacion": 2
+    },
+    "categoria_origen": "gastos",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "gastos/9B454171-942F-494A-8BB3-4FAA62A46B2C.pdf",
+    "nombre_archivo_pdf": "9B454171-942F-494A-8BB3-4FAA62A46B2C.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.983Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-GJXHZ4ON-659731461438655",
+      "codigoGeneracion": "7F9AD1B6-35D3-47CB-8805-9B8215FACA7B",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-29",
+      "horEmi": "14:48:01",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "36",
+      "numDocumento": "24791725186792",
+      "nrc": "11688444",
+      "nombre": "Farrell - Kertzmann",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Metapán",
+        "complemento": "19667 Nienow Viaduct"
+      },
+      "telefono": "20226242",
+      "correo": "oceane_cronin@hotmail.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 2,
+        "codigo": "XTZITIF9",
+        "descripcion": "Ferretería - Clavos 2\"",
+        "uniMedida": 99,
+        "precioUni": 992.51,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 1985.02,
+        "ivaItem": 258.05
+      },
+      {
+        "numItem": 2,
+        "tipoItem": 1,
+        "cantidad": 13,
+        "codigo": "56ABDBTR",
+        "descripcion": "Plomería - Codo PVC 90°",
+        "uniMedida": 99,
+        "precioUni": 241.4,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 3138.2,
+        "ivaItem": 407.97
+      },
+      {
+        "numItem": 3,
+        "tipoItem": 1,
+        "cantidad": 13,
+        "codigo": "V4XOZ5QN",
+        "descripcion": "Materiales - Block 15x20x40",
+        "uniMedida": 99,
+        "precioUni": 283.38,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 3683.94,
+        "ivaItem": 478.91
+      },
+      {
+        "numItem": 4,
+        "tipoItem": 1,
+        "cantidad": 2,
+        "codigo": "JLHXOLOE",
+        "descripcion": "Herramientas - Piocha",
+        "uniMedida": 99,
+        "precioUni": 258.11,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 516.22,
+        "ivaItem": 67.11
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 9323.38,
+      "subTotalVentas": 9323.38,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 9323.38,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 10535.42,
+      "totalNoGravado": 0,
+      "totalPagar": 10535.42,
+      "totalLetras": "10535 DÓLARES CON 42/100 USD",
+      "totalIva": 1212.04,
+      "saldoFavor": 0,
+      "condicionOperacion": 3
+    },
+    "categoria_origen": "SA",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "SA/7F9AD1B6-35D3-47CB-8805-9B8215FACA7B.pdf",
+    "nombre_archivo_pdf": "7F9AD1B6-35D3-47CB-8805-9B8215FACA7B.pdf",
+    "tiene_respaldo_pdf": false,
+    "migrado_en": "2026-01-25T02:42:13.964Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-OSNUEGIV-508718508106284",
+      "codigoGeneracion": "780040BC-2E17-44BB-B95E-C0C01E73DB79",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-28",
+      "horEmi": "06:59:59",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "37",
+      "numDocumento": "85787736952853",
+      "nrc": "06513918",
+      "nombre": "Langosh - Stehr",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Ahuachapán",
+        "municipio": "Ahuachapán",
+        "complemento": "941 Upton Ville"
+      },
+      "telefono": "60962499",
+      "correo": "mariana_beatty75@yahoo.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 5,
+        "codigo": "V3VTNCXP",
+        "descripcion": "Materiales - Block 15x20x40",
+        "uniMedida": 99,
+        "precioUni": 692.19,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 3460.95,
+        "ivaItem": 449.92
+      },
+      {
+        "numItem": 2,
+        "tipoItem": 1,
+        "cantidad": 2,
+        "codigo": "QUP2IYG6",
+        "descripcion": "Eléctrico - Cable THW #12",
+        "uniMedida": 99,
+        "precioUni": 803.26,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 1606.52,
+        "ivaItem": 208.85
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 5067.47,
+      "subTotalVentas": 5067.47,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 5067.47,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 5726.24,
+      "totalNoGravado": 0,
+      "totalPagar": 5726.24,
+      "totalLetras": "5726 DÓLARES CON 24/100 USD",
+      "totalIva": 658.77,
+      "saldoFavor": 0,
+      "condicionOperacion": 1
+    },
+    "categoria_origen": "SA",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "SA/780040BC-2E17-44BB-B95E-C0C01E73DB79.pdf",
+    "nombre_archivo_pdf": "780040BC-2E17-44BB-B95E-C0C01E73DB79.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.964Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-PC39P2K6-542010459381274",
+      "codigoGeneracion": "FD341C3B-922E-40DA-991C-441C40FB16CA",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-27",
+      "horEmi": "22:55:00",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "36",
+      "numDocumento": "83502885548992",
+      "nrc": "15953522",
+      "nombre": "Lynch - Hammes",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Sonsonate",
+        "municipio": "Sonsonate",
+        "complemento": "790 Rohan Cape"
+      },
+      "telefono": "26463548",
+      "correo": "mckayla32@yahoo.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 16,
+        "codigo": "H3ISOHP2",
+        "descripcion": "Ferretería - Cemento Portland",
+        "uniMedida": 99,
+        "precioUni": 639.89,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 10238.24,
+        "ivaItem": 1330.97
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 10238.24,
+      "subTotalVentas": 10238.24,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 10238.24,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 11569.21,
+      "totalNoGravado": 0,
+      "totalPagar": 11569.21,
+      "totalLetras": "11569 DÓLARES CON 21/100 USD",
+      "totalIva": 1330.97,
+      "saldoFavor": 0,
+      "condicionOperacion": 1
+    },
+    "categoria_origen": "SA",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "SA/FD341C3B-922E-40DA-991C-441C40FB16CA.pdf",
+    "nombre_archivo_pdf": "FD341C3B-922E-40DA-991C-441C40FB16CA.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.965Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-NWR1CEPU-506166898202323",
+      "codigoGeneracion": "2405A89B-CC62-4D6F-BABA-98B60806584C",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-27",
+      "horEmi": "02:30:06",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "36",
+      "numDocumento": "83502885548992",
+      "nrc": "15953522",
+      "nombre": "Lynch - Hammes",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Sonsonate",
+        "municipio": "Sonsonate",
+        "complemento": "790 Rohan Cape"
+      },
+      "telefono": "26463548",
+      "correo": "mckayla32@yahoo.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 18,
+        "codigo": "JAGSO3DG",
+        "descripcion": "Plomería - Tubo PVC 1/2\"",
+        "uniMedida": 99,
+        "precioUni": 250.44,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 4507.92,
+        "ivaItem": 586.03
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 4507.92,
+      "subTotalVentas": 4507.92,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 4507.92,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 5093.95,
+      "totalNoGravado": 0,
+      "totalPagar": 5093.95,
+      "totalLetras": "5093 DÓLARES CON 95/100 USD",
+      "totalIva": 586.03,
+      "saldoFavor": 0,
+      "condicionOperacion": 3
+    },
+    "categoria_origen": "SA",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "SA/2405A89B-CC62-4D6F-BABA-98B60806584C.pdf",
+    "nombre_archivo_pdf": "2405A89B-CC62-4D6F-BABA-98B60806584C.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.968Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-RY2CUOQV-534754890621791",
+      "codigoGeneracion": "65431B69-23E4-4740-804E-F1A522C99A42",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-27",
+      "horEmi": "22:47:53",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "37",
+      "numDocumento": "38887541753469",
+      "nrc": "85743355",
+      "nombre": "Zboncak, Schimmel and Sauer",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "La Paz",
+        "municipio": "La Paz",
+        "complemento": "12166 Wisoky Mills"
+      },
+      "telefono": "74562187",
+      "correo": "curtis_hilll@yahoo.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 20,
+        "codigo": "ZGDYRSFB",
+        "descripcion": "Ferretería - Alambre de amarre",
+        "uniMedida": 99,
+        "precioUni": 681.9,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 13638,
+        "ivaItem": 1772.94
+      },
+      {
+        "numItem": 2,
+        "tipoItem": 1,
+        "cantidad": 4,
+        "codigo": "UEKEUV0G",
+        "descripcion": "Ferretería - Clavos 2\"",
+        "uniMedida": 99,
+        "precioUni": 58.69,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 234.76,
+        "ivaItem": 30.52
+      },
+      {
+        "numItem": 3,
+        "tipoItem": 1,
+        "cantidad": 14,
+        "codigo": "LKGE891T",
+        "descripcion": "Ferretería - Clavos 2\"",
+        "uniMedida": 99,
+        "precioUni": 462.15,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 6470.1,
+        "ivaItem": 841.11
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 20342.86,
+      "subTotalVentas": 20342.86,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 20342.86,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 22987.43,
+      "totalNoGravado": 0,
+      "totalPagar": 22987.43,
+      "totalLetras": "22987 DÓLARES CON 43/100 USD",
+      "totalIva": 2644.57,
+      "saldoFavor": 0,
+      "condicionOperacion": 3
+    },
+    "categoria_origen": "remisiones",
+    "sucursal": "H4 - San Salvador",
+    "ruta_pdf": "remisiones/65431B69-23E4-4740-804E-F1A522C99A42.pdf",
+    "nombre_archivo_pdf": "65431B69-23E4-4740-804E-F1A522C99A42.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.984Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-6YHA2HGN-392476464969706",
+      "codigoGeneracion": "7FF1E36A-C286-4900-A109-8DA02C69FAA0",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-24",
+      "horEmi": "20:44:23",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "36",
+      "numDocumento": "58321375994881",
+      "nrc": "51341825",
+      "nombre": "Williamson, Hane and Kiehn",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "San Miguel",
+        "municipio": "Chinameca",
+        "complemento": "748 Mraz Park"
+      },
+      "telefono": "72242310",
+      "correo": "jonathan_pouros20@yahoo.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 8,
+        "codigo": "ODMBO5LR",
+        "descripcion": "Herramientas - Carretilla de construcción",
+        "uniMedida": 99,
+        "precioUni": 762.97,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 6103.76,
+        "ivaItem": 793.49
+      },
+      {
+        "numItem": 2,
+        "tipoItem": 1,
+        "cantidad": 14,
+        "codigo": "9OUMSDWY",
+        "descripcion": "Herramientas - Pala cuadrada",
+        "uniMedida": 99,
+        "precioUni": 783.96,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 10975.44,
+        "ivaItem": 1426.81
+      },
+      {
+        "numItem": 3,
+        "tipoItem": 1,
+        "cantidad": 16,
+        "codigo": "ZNJZCKRF",
+        "descripcion": "Ferretería - Thinner estándar",
+        "uniMedida": 99,
+        "precioUni": 726.25,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 11620,
+        "ivaItem": 1510.6
+      },
+      {
+        "numItem": 4,
+        "tipoItem": 1,
+        "cantidad": 20,
+        "codigo": "MVYCFVHD",
+        "descripcion": "Plomería - Tubo PVC 1/2\"",
+        "uniMedida": 99,
+        "precioUni": 245.34,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 4906.8,
+        "ivaItem": 637.88
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 33606,
+      "subTotalVentas": 33606,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 33606,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 37974.78,
+      "totalNoGravado": 0,
+      "totalPagar": 37974.78,
+      "totalLetras": "37974 DÓLARES CON 78/100 USD",
+      "totalIva": 4368.78,
+      "saldoFavor": 0,
+      "condicionOperacion": 1
+    },
+    "categoria_origen": "SA",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "SA/7FF1E36A-C286-4900-A109-8DA02C69FAA0.pdf",
+    "nombre_archivo_pdf": "7FF1E36A-C286-4900-A109-8DA02C69FAA0.pdf",
+    "tiene_respaldo_pdf": false,
+    "migrado_en": "2026-01-25T02:42:13.966Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-FKPHMWTF-152742691670193",
+      "codigoGeneracion": "3ED98AE7-A44A-4E52-AD75-871D150BEA7F",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-24",
+      "horEmi": "07:46:30",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "36",
+      "numDocumento": "47832325552578",
+      "nrc": "83710929",
+      "nombre": "Douglas - Herman",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Usulután",
+        "municipio": "Usulután",
+        "complemento": "11731 Kunze Cliffs"
+      },
+      "telefono": "73078433",
+      "correo": "lucie.schmitt21@yahoo.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 5,
+        "codigo": "QRVCMVPO",
+        "descripcion": "Ferretería - Pintura látex blanca",
+        "uniMedida": 99,
+        "precioUni": 196.94,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 984.7,
+        "ivaItem": 128.01
+      },
+      {
+        "numItem": 2,
+        "tipoItem": 1,
+        "cantidad": 9,
+        "codigo": "6BBOGHGZ",
+        "descripcion": "Eléctrico - Toma corriente doble",
+        "uniMedida": 99,
+        "precioUni": 437.28,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 3935.52,
+        "ivaItem": 511.62
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 4920.22,
+      "subTotalVentas": 4920.22,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 4920.22,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 5559.85,
+      "totalNoGravado": 0,
+      "totalPagar": 5559.85,
+      "totalLetras": "5559 DÓLARES CON 85/100 USD",
+      "totalIva": 639.63,
+      "saldoFavor": 0,
+      "condicionOperacion": 3
+    },
+    "categoria_origen": "remisiones",
+    "sucursal": "H4 - San Salvador",
+    "ruta_pdf": "remisiones/3ED98AE7-A44A-4E52-AD75-871D150BEA7F.pdf",
+    "nombre_archivo_pdf": "3ED98AE7-A44A-4E52-AD75-871D150BEA7F.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.985Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-6BBHKRBD-472381470321756",
+      "codigoGeneracion": "0A2B6C86-7E64-4E3F-B8E8-E365E7394302",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-23",
+      "horEmi": "18:12:20",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "13",
+      "numDocumento": "82755258705887",
+      "nrc": "58910603",
+      "nombre": "Fahey - Bogan",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Sonsonate",
+        "municipio": "Sonsonate",
+        "complemento": "973 Beer Junctions"
+      },
+      "telefono": "63739701",
+      "correo": "lelia63@gmail.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 6,
+        "codigo": "KOHXE4AE",
+        "descripcion": "Materiales - Block 15x20x40",
+        "uniMedida": 99,
+        "precioUni": 965.34,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 5792.04,
+        "ivaItem": 752.97
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 5792.04,
+      "subTotalVentas": 5792.04,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 5792.04,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 6545.01,
+      "totalNoGravado": 0,
+      "totalPagar": 6545.01,
+      "totalLetras": "6545 DÓLARES CON 1/100 USD",
+      "totalIva": 752.97,
+      "saldoFavor": 0,
+      "condicionOperacion": 3
+    },
+    "categoria_origen": "SA",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "SA/0A2B6C86-7E64-4E3F-B8E8-E365E7394302.pdf",
+    "nombre_archivo_pdf": "0A2B6C86-7E64-4E3F-B8E8-E365E7394302.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.967Z"
+  },
+  {
+    "identificacion": {
+      "version": 1,
+      "ambiente": "00",
+      "tipoDte": "01",
+      "numeroControl": "DTE-01-HUHSYWVN-158572674485413",
+      "codigoGeneracion": "5D1D0913-45DF-44AB-8E70-EF7A850DA98D",
+      "tipoModelo": 1,
+      "tipoOperacion": 1,
+      "fecEmi": "2025-12-23",
+      "horEmi": "06:58:52",
+      "tipoMoneda": "USD"
+    },
+    "emisor": {
+      "nit": "0614-161289-001-7",
+      "nrc": "12345-6",
+      "nombre": "TECNOSOLUTIONS S.A. DE C.V.",
+      "codActividad": "46900",
+      "descActividad": "Comercio al por mayor de productos varios",
+      "nombreComercial": "TECNOSOLUTIONS",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Santa Ana",
+        "complemento": "Avenida Independencia Sur, Col. Centro"
+      },
+      "telefono": "24478000",
+      "correo": "ventas@tecnosolutions.com"
+    },
+    "receptor": {
+      "tipoDocumento": "37",
+      "numDocumento": "14307425470816",
+      "nrc": "15238321",
+      "nombre": "Okuneva - Zulauf",
+      "codActividad": "46900",
+      "descActividad": "Comercio minorista",
+      "direccion": {
+        "departamento": "Santa Ana",
+        "municipio": "Coatepeque",
+        "complemento": "32720 Ceasar Park"
+      },
+      "telefono": "61851712",
+      "correo": "dominic47@hotmail.com"
+    },
+    "cuerpoDocumento": [
+      {
+        "numItem": 1,
+        "tipoItem": 1,
+        "cantidad": 8,
+        "codigo": "GD1A2PZO",
+        "descripcion": "Plomería - Codo PVC 90°",
+        "uniMedida": 99,
+        "precioUni": 98.77,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 790.16,
+        "ivaItem": 102.72
+      },
+      {
+        "numItem": 2,
+        "tipoItem": 1,
+        "cantidad": 8,
+        "codigo": "3SJ7XCQN",
+        "descripcion": "Herramientas - Carretilla de construcción",
+        "uniMedida": 99,
+        "precioUni": 687.64,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 5501.12,
+        "ivaItem": 715.15
+      },
+      {
+        "numItem": 3,
+        "tipoItem": 1,
+        "cantidad": 1,
+        "codigo": "LJPCXK9O",
+        "descripcion": "Eléctrico - Interruptor sencillo",
+        "uniMedida": 99,
+        "precioUni": 658.49,
+        "montoDescu": 0,
+        "ventaNoSuj": 0,
+        "ventaExenta": 0,
+        "ventaGravada": 658.49,
+        "ivaItem": 85.6
+      }
+    ],
+    "resumen": {
+      "totalNoSuj": 0,
+      "totalExenta": 0,
+      "totalGravada": 6949.77,
+      "subTotalVentas": 6949.77,
+      "descuNoSuj": 0,
+      "descuExenta": 0,
+      "descuGravada": 0,
+      "porcentajeDescuento": 0,
+      "totalDescu": 0,
+      "subTotal": 6949.77,
+      "ivaRete1": 0,
+      "reteRenta": 0,
+      "montoTotalOperacion": 7853.24,
+      "totalNoGravado": 0,
+      "totalPagar": 7853.24,
+      "totalLetras": "7853 DÓLARES CON 24/100 USD",
+      "totalIva": 903.47,
+      "saldoFavor": 0,
+      "condicionOperacion": 2
+    },
+    "categoria_origen": "SA",
+    "sucursal": "H1 - Santa Ana",
+    "ruta_pdf": "SA/5D1D0913-45DF-44AB-8E70-EF7A850DA98D.pdf",
+    "nombre_archivo_pdf": "5D1D0913-45DF-44AB-8E70-EF7A850DA98D.pdf",
+    "tiene_respaldo_pdf": true,
+    "migrado_en": "2026-01-25T02:42:13.969Z"
+  }
+]

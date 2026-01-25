@@ -6,8 +6,8 @@ import fs from 'fs/promises'
 import { networkInterfaces } from 'os'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { connectDB } from './config/database.js'
-import Factura from './models/Factura.js'
+import swaggerJsdoc from 'swagger-jsdoc'
+import swaggerUi from 'swagger-ui-express'
 
 // Cargar variables de entorno
 dotenv.config()
@@ -20,93 +20,56 @@ const PORT = process.env.PORT || 3001
 const HOST = process.env.HOST || '0.0.0.0'
 const NODE_ENV = process.env.NODE_ENV || 'development'
 
-// Conectar a MongoDB al iniciar
-let mongoConnected = false
-connectDB()
-  .then(() => {
-    mongoConnected = true
-    console.log('✅ MongoDB conectado exitosamente')
-    console.log('📊 El servidor está listo para servir datos desde MongoDB')
-  })
-  .catch((err) => {
-    mongoConnected = false
-    console.error('❌ Error fatal conectando a MongoDB:', err)
-    console.error('⚠️  El servidor continuará pero NO podrá servir datos desde MongoDB')
-    console.error('⚠️  Verifica MONGODB_URI en el archivo .env')
-  })
+console.log('🎭 MODO DEMO ACTIVADO - Usando datos de prueba ficticios')
+console.log('📁 Los datos no provienen de MongoDB sino de archivos JSON locales\n')
 
-function getBackupPath() {
-  if (process.env.BACKUP_PATH) {
-    return process.env.BACKUP_PATH
-  }
+// ===================================================================
+// CARGAR DATOS MOCK EN MEMORIA
+// ===================================================================
+let facturasDB = []
+let clientesDB = []
 
-  if (NODE_ENV === 'development') {
-    return 'J:/Henri/Copia de seguridad de facturas(No borrar)/Backup'
-  }
-
-  return 'C:/zeta2/Henri/Copia de seguridad de facturas(No borrar)/Backup'
-}
-
-// Ruta del backup - ahora dinámica
-const BACKUP_PATH = getBackupPath()
-
-console.log('📂 Configuración de rutas:')
-console.log('   - NODE_ENV:', NODE_ENV)
-console.log('   - BACKUP_PATH:', BACKUP_PATH)
-console.log('   - __dirname:', __dirname)
-
-// CORS - En producción, servir frontend desde el mismo servidor
-if (NODE_ENV === 'development') {
-  app.use(cors())
-}
-
-app.use(express.json())
-
-// Middleware para verificar conexión a MongoDB en endpoints que lo requieren
-const requireMongoDB = (req, res, next) => {
-  if (!mongoConnected) {
-    console.error('⚠️ Intento de acceder a endpoint MongoDB sin conexión activa')
-    return res.status(503).json({
-      success: false,
-      error: 'Base de datos no disponible. Verifica la conexión a MongoDB.',
-      details: 'MONGODB_URI podría no estar configurada o el servidor MongoDB no está accesible',
-    })
-  }
-  next()
-}
-
-// Servir archivos estáticos del frontend en producción
-if (NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '..', 'dist')
-  console.log(`📦 Sirviendo frontend desde: ${distPath}`)
-
-  app.use(express.static(distPath))
-}
-
-// Función para obtener información de un archivo
-async function getFileInfo(filePath, fileName) {
+async function loadMockData() {
   try {
-    const stats = await fs.stat(filePath)
-    const ext = path.extname(fileName).toLowerCase().slice(1)
+    const facturasPath = path.join(__dirname, 'mock-data', 'facturas.json')
+    const clientesPath = path.join(__dirname, 'mock-data', 'clientes.json')
 
-    return {
-      name: fileName,
-      path: filePath,
-      size: stats.size,
-      sizeFormatted: formatBytes(stats.size),
-      type: getFileType(ext),
-      extension: ext,
-      isDirectory: stats.isDirectory(),
-      modifiedDate: stats.mtime,
-      createdDate: stats.birthtime,
-    }
+    const facturasRaw = await fs.readFile(facturasPath, 'utf-8')
+    const clientesRaw = await fs.readFile(clientesPath, 'utf-8')
+
+    facturasDB = JSON.parse(facturasRaw)
+    clientesDB = JSON.parse(clientesRaw)
+
+    console.log('✅ Datos mock cargados:')
+    console.log(`   - ${facturasDB.length} facturas`)
+    console.log(`   - ${clientesDB.length} clientes`)
+
+    // Estadísticas por categoría
+    const stats = {}
+    facturasDB.forEach(f => {
+      stats[f.categoria_origen] = (stats[f.categoria_origen] || 0) + 1
+    })
+
+    console.log('\n📊 Distribución:')
+    Object.entries(stats).forEach(([cat, count]) => {
+      console.log(`   - ${cat}: ${count} facturas`)
+    })
+    console.log('')
+
+    return true
   } catch (error) {
-    console.error(`Error reading file ${fileName}:`, error)
-    return null
+    console.error('❌ Error cargando datos mock:', error)
+    return false
   }
 }
 
-// Función para formatear bytes a formato legible
+// Cargar datos al iniciar
+await loadMockData()
+
+// ===================================================================
+// FUNCIONES AUXILIARES
+// ===================================================================
+
 function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return '0 B'
   const k = 1024
@@ -116,7 +79,6 @@ function formatBytes(bytes, decimals = 2) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
-// Función para determinar el tipo de archivo
 function getFileType(ext) {
   const types = {
     pdf: 'pdf',
@@ -124,232 +86,207 @@ function getFileType(ext) {
     xml: 'xml',
     png: 'image',
     jpg: 'image',
-    jpeg: 'image',
-    gif: 'image',
-    svg: 'image',
-    txt: 'text',
-    doc: 'document',
-    docx: 'document',
-    xls: 'spreadsheet',
-    xlsx: 'spreadsheet',
+    jpeg: 'image'
   }
   return types[ext] || 'other'
 }
 
-// ========== ENDPOINT ANTIGUO DESHABILITADO ==========
-// Endpoint para obtener la estructura completa del backup
-/* DESHABILITADO - Ahora se usa MongoDB
-app.get('/api/backup/structure', async (req, res) => {
-  try {
-    const data = await loadBackupData()
+// ===================================================================
+// MIDDLEWARES
+// ===================================================================
 
-    res.json({
-      success: true,
-      data: data.structure,
-    })
-  } catch (error) {
-    console.error('Error reading backup structure:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-*/
+if (NODE_ENV === 'development') {
+  app.use(cors())
+}
 
-// ========== ENDPOINT ANTIGUO DESHABILITADO ==========
-// Endpoint para obtener archivos de una carpeta específica
-/* DESHABILITADO - Ahora se usa MongoDB
-app.get('/api/backup/folder/:folderName', async (req, res) => {
-  try {
-    const { folderName } = req.params
-    const { dateFrom, dateTo } = req.query
+app.use(express.json())
 
-    // Si hay filtro de fechas, procesar directamente
-    if (dateFrom || dateTo) {
-      console.log(`🔍 Filtrando carpeta ${folderName} por fechas:`, { dateFrom, dateTo })
+// ===================================================================
+// CONFIGURACIÓN DE SWAGGER
+// ===================================================================
 
-      const folderPath = path.join(BACKUP_PATH, folderName)
-
-      // Verificar que existe
-      try {
-        await fs.access(folderPath)
-      } catch (err) {
-        return res.status(404).json({
-          success: false,
-          error: 'Carpeta no encontrada',
-        })
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Vault-DTE API (Demo Mode)',
+      version: '1.0.0',
+      description: 'API REST para gestión de facturas electrónicas (DTE) - Modo Demo con datos ficticios. Incluye también referencia a endpoints de producción.',
+      contact: {
+        name: 'Vault-DTE - Sistema de Gestión DTE',
       }
-
-      // Leer todos los archivos
-      const allFiles = await fs.readdir(folderPath)
-      const filteredFiles = []
-
-      for (const fileName of allFiles) {
-        // Solo procesar archivos JSON
-        if (!fileName.endsWith('.json')) {
-          continue
-        }
-
-        try {
-          const filePath = path.join(folderPath, fileName)
-          const fileContent = await fs.readFile(filePath, 'utf-8')
-          const jsonData = JSON.parse(fileContent)
-
-          // Obtener fecha de emisión
-          const fecEmi = jsonData.identificacion?.fecEmi
-
-          if (fecEmi) {
-            // Verificar si está en el rango
-            const inRange = (!dateFrom || fecEmi >= dateFrom) && (!dateTo || fecEmi <= dateTo)
-
-            if (inRange) {
-              // Agregar el JSON y buscar su PDF correspondiente
-              const pdfName = fileName.replace('.json', '.pdf')
-              const pdfPath = path.join(folderPath, pdfName)
-
-              // Agregar JSON con emissionDate
-              const jsonInfo = await getFileInfo(filePath, fileName)
-              if (jsonInfo) {
-                jsonInfo.emissionDate = fecEmi // Agregar fecha de emisión
-                filteredFiles.push(jsonInfo)
-              }
-
-              // Agregar PDF si existe
-              try {
-                await fs.access(pdfPath)
-                const pdfInfo = await getFileInfo(pdfPath, pdfName)
-                if (pdfInfo) {
-                  pdfInfo.emissionDate = fecEmi // También al PDF para mantener consistencia
-                  filteredFiles.push(pdfInfo)
-                }
-              } catch (err) {
-                // PDF no existe, continuar
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Error procesando archivo ${fileName}:`, err.message)
-          // Continuar con el siguiente archivo
-        }
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: 'Servidor demo con datos ficticios'
       }
+    ],
+    tags: [
+      { name: 'Estadísticas', description: 'Métricas y análisis de datos' },
+      { name: 'Explorador', description: 'Búsqueda y navegación de facturas' },
+      { name: 'Clientes', description: 'Gestión de clientes' },
+      { name: 'Empaquetador', description: 'Generación de archivos ZIP' },
+      { name: 'Sistema', description: 'Salud y configuración del servidor' }
+    ]
+  },
+  apis: ['./server/index.js', './server/index.production.js']
+}
 
-      console.log(`✅ Filtrado completado: ${filteredFiles.length} archivos encontrados`)
+const swaggerSpec = swaggerJsdoc(swaggerOptions)
 
-      return res.json({
-        success: true,
-        data: {
-          folder: folderName,
-          path: folderPath,
-          files: filteredFiles,
-          count: filteredFiles.length,
-          filtered: true,
-          dateRange: { dateFrom, dateTo },
-        },
-      })
-    }
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Vault-DTE API Documentation (Demo)'
+}))
 
-    // Sin filtro de fechas, usar caché
-    const data = await loadBackupData()
-    const folder = data.structure.folders.find((f) => f.name === folderName)
-
-    if (!folder) {
-      return res.status(404).json({
-        success: false,
-        error: 'Carpeta no encontrada',
-      })
-    }
-
-    res.json({
-      success: true,
-      data: {
-        folder: folderName,
-        path: folder.path,
-        files: folder.files,
-        count: folder.files.length,
-      },
-    })
-  } catch (error) {
-    console.error('Error reading folder:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json')
+  res.send(swaggerSpec)
 })
-*/
 
-// Endpoint para obtener estadísticas desde MongoDB
-app.get('/api/backup/stats', requireMongoDB, async (req, res) => {
+console.log(`📚 Documentación Swagger disponible en: http://localhost:${PORT}/api-docs`)
+
+// Servir archivos estáticos del frontend en producción
+if (NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '..', 'dist')
+  console.log(`📦 Sirviendo frontend desde: ${distPath}`)
+  app.use(express.static(distPath))
+}
+
+// ===================================================================
+// ENDPOINTS - ESTADÍSTICAS
+// ===================================================================
+
+/**
+ * @swagger
+ * /api/backup/stats:
+ *   get:
+ *     tags:
+ *       - Estadísticas
+ *     summary: Obtener estadísticas generales (Demo)
+ *     description: Retorna métricas globales de facturas desde datos ficticios en memoria
+ *     responses:
+ *       200:
+ *         description: Estadísticas obtenidas exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     pdf:
+ *                       type: number
+ *                       example: 500
+ *                     json:
+ *                       type: number
+ *                       example: 500
+ *                     total:
+ *                       type: number
+ *                       example: 1000
+ *                     pairedInvoices:
+ *                       type: number
+ *                       example: 500
+ *                     anuladas:
+ *                       type: number
+ *                       example: 10
+ */
+app.get('/api/backup/stats', async (req, res) => {
   try {
-    console.log('📊 Obteniendo estadísticas desde MongoDB...')
-    console.log('🔌 Estado de conexión MongoDB:', connectDB ? 'Disponible' : 'No disponible')
+    console.log('📊 Obteniendo estadísticas...')
 
     // Total de facturas
-    const totalFacturas = await Factura.countDocuments()
-    console.log('📈 Total facturas encontradas:', totalFacturas)
+    const totalFacturas = facturasDB.length
 
-    // Facturas con respaldo PDF
-    const conPDF = await Factura.countDocuments({ tiene_respaldo_pdf: true })
+    // Facturas con respaldo PDF (debe ser igual al total)
+    const conPDF = facturasDB.filter(f => f.tiene_respaldo_pdf).length
 
-    // Conteo por categoría
-    const porCategoria = await Factura.aggregate([
-      { $group: { _id: '$categoria_origen', count: { $sum: 1 } } },
-    ])
-
-    const pairedByFolder = {
+    // Conteo global por categoría
+    const categorias = {
       SA: 0,
       SM: 0,
       SS: 0,
       gastos: 0,
       remisiones: 0,
       notas_de_credito: 0,
+      anuladas: 0
     }
 
-    let anuladas = 0
+    // Conteo detallado por sucursal (incluyendo todas las categorías en cada sucursal)
+    const detallePorSucursal = {
+      'H1 - Santa Ana': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 },
+      'H2 - San Miguel': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 },
+      'H4 - San Salvador': { facturas: 0, gastos: 0, remisiones: 0, notas_credito: 0, anuladas: 0, total: 0 }
+    }
 
-    porCategoria.forEach((item) => {
-      const categoria = item._id
-      const count = item.count
+    facturasDB.forEach(f => {
+      const cat = f.categoria_origen
+      const sucursal = f.sucursal
 
-      if (categoria === 'SA' || categoria === 'H1') pairedByFolder.SA = count
-      else if (categoria === 'SM' || categoria === 'H2') pairedByFolder.SM = count
-      else if (categoria === 'SS' || categoria === 'H4') pairedByFolder.SS = count
-      else if (categoria === 'gastos') pairedByFolder.gastos = count
-      else if (categoria === 'remisiones') pairedByFolder.remisiones = count
-      else if (categoria === 'notas_de_credito') pairedByFolder.notas_de_credito = count
-      else if (categoria === 'anuladas') anuladas = count
+      // Contar por categoría global
+      if (categorias[cat] !== undefined) {
+        categorias[cat]++
+      }
+
+      // Agrupar por sucursal
+      if (detallePorSucursal[sucursal]) {
+        detallePorSucursal[sucursal].total++
+
+        if (cat === 'SA' || cat === 'SM' || cat === 'SS') {
+          detallePorSucursal[sucursal].facturas++
+        } else if (cat === 'gastos') {
+          detallePorSucursal[sucursal].gastos++
+        } else if (cat === 'remisiones') {
+          detallePorSucursal[sucursal].remisiones++
+        } else if (cat === 'notas_de_credito') {
+          detallePorSucursal[sucursal].notas_credito++
+        } else if (cat === 'anuladas') {
+          detallePorSucursal[sucursal].anuladas++
+        }
+      }
     })
 
+    // Para compatibilidad con frontend antiguo
+    const pairedByFolder = {
+      SA: categorias.SA,
+      SM: categorias.SM,
+      SS: categorias.SS,
+      gastos: categorias.gastos,
+      remisiones: categorias.remisiones,
+      notas_de_credito: categorias.notas_de_credito,
+    }
+
+    const anuladas = categorias.anuladas
+
+    // Facturas recientes (últimas 24h - simulado)
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
-    yesterday.setHours(0, 0, 0, 0)
-
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
     const yesterdayStr = yesterday.toISOString().split('T')[0]
 
-    const recentFiles = await Factura.countDocuments({
-      'identificacion.fecEmi': yesterdayStr,
-    })
+    const recentFiles = facturasDB.filter(f =>
+      f.identificacion?.fecEmi === yesterdayStr
+    ).length
 
     const stats = {
-      pdf: conPDF,
-      json: totalFacturas,
-      xml: 0, // Ya no lo necesitamos pero lo dejamos para compatibilidad
+      pdf: totalFacturas, // Cambiado: ahora debe mostrar 500 como los JSON
+      json: totalFacturas, // 500
+      xml: 0,
       images: 0,
       other: 0,
-      total: totalFacturas * 2, // PDF + JSON
+      total: totalFacturas * 2, // PDF + JSON = 1000
       totalSize: 0,
-      totalSizeFormatted: 'N/A',
+      totalSizeFormatted: 'N/A (modo demo)',
       recentFiles,
       pairedInvoices: totalFacturas,
       anuladas,
       pairedByFolder,
+      detallePorSucursal, // NUEVO: Detalle completo por sucursal
     }
-
-    console.log('✅ Estadísticas calculadas:', stats)
 
     res.json({
       success: true,
@@ -364,62 +301,179 @@ app.get('/api/backup/stats', requireMongoDB, async (req, res) => {
   }
 })
 
-// Endpoint para obtener estructura de carpetas (compatible con frontend)
-app.get('/api/backup/structure', requireMongoDB, async (req, res) => {
+/**
+ * @swagger
+ * /api/backup/ventas-por-sucursal:
+ *   get:
+ *     tags:
+ *       - Estadísticas
+ *     summary: Obtener ventas por sucursal (Demo)
+ *     description: Calcula ventas totales por sucursal en un período ajustable
+ *     parameters:
+ *       - in: query
+ *         name: periodo
+ *         schema:
+ *           type: integer
+ *           enum: [1, 6, 12]
+ *           default: 12
+ *         description: Número de meses (1, 6 o 12)
+ *     responses:
+ *       200:
+ *         description: Ventas calculadas exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     periodo:
+ *                       type: number
+ *                       example: 12
+ *                     ventasPorSucursal:
+ *                       type: object
+ */
+app.get('/api/backup/ventas-por-sucursal', async (req, res) => {
   try {
-    console.log('📂 Obteniendo estructura de carpetas desde MongoDB...')
-    console.log('🔌 Estado de conexión MongoDB:', connectDB ? 'Disponible' : 'No disponible')
+    const { periodo = 12 } = req.query // 12, 6, o 1 meses
+    const mesesAtras = parseInt(periodo)
 
-    // Obtener conteo por categoría
-    const porCategoria = await Factura.aggregate([
-      { $group: { _id: '$categoria_origen', count: { $sum: 1 } } },
-    ])
+    console.log(`📈 Calculando ventas por sucursal (últimos ${mesesAtras} meses)...`)
 
-    const folders = []
+    // Calcular fecha de inicio
+    const fechaFin = new Date()
+    const fechaInicio = new Date()
+    fechaInicio.setMonth(fechaInicio.getMonth() - mesesAtras)
 
-    // Mapeo de categorías a nombres de carpeta
-    const categoriasMap = {
-      SA: 'SA',
-      H1: 'SA',
-      SM: 'SM',
-      H2: 'SM',
-      SS: 'SS',
-      H4: 'SS',
-      gastos: 'gastos',
-      remisiones: 'remisiones',
-      notas_de_credito: 'notas_de_credito',
-      anuladas: 'anuladas',
+    const ventasPorSucursal = {
+      'H1 - Santa Ana': { totalVentas: 0, facturas: 0, anuladas: 0, devuelto: 0 },
+      'H2 - San Miguel': { totalVentas: 0, facturas: 0, anuladas: 0, devuelto: 0 },
+      'H4 - San Salvador': { totalVentas: 0, facturas: 0, anuladas: 0, devuelto: 0 }
     }
 
-    // Agrupar conteos por carpeta
+    facturasDB.forEach(f => {
+      const fechaFactura = new Date(f.identificacion?.fecEmi || '2025-01-01')
+      const sucursal = f.sucursal
+      const categoria = f.categoria_origen
+
+      // Filtrar por período
+      if (fechaFactura >= fechaInicio && fechaFactura <= fechaFin && ventasPorSucursal[sucursal]) {
+        const totalPagar = f.resumen?.totalPagar || 0
+
+        // Ventas (SA, SM, SS)
+        if (categoria === 'SA' || categoria === 'SM' || categoria === 'SS') {
+          ventasPorSucursal[sucursal].totalVentas += totalPagar
+          ventasPorSucursal[sucursal].facturas++
+        }
+        // Anuladas
+        else if (categoria === 'anuladas') {
+          ventasPorSucursal[sucursal].anuladas++
+          ventasPorSucursal[sucursal].devuelto += totalPagar
+        }
+        // Notas de crédito (también cuentan como devolución)
+        else if (categoria === 'notas_de_credito') {
+          ventasPorSucursal[sucursal].devuelto += totalPagar
+        }
+      }
+    })
+
+    // Redondear valores
+    Object.keys(ventasPorSucursal).forEach(sucursal => {
+      ventasPorSucursal[sucursal].totalVentas = parseFloat(ventasPorSucursal[sucursal].totalVentas.toFixed(2))
+      ventasPorSucursal[sucursal].devuelto = parseFloat(ventasPorSucursal[sucursal].devuelto.toFixed(2))
+    })
+
+    res.json({
+      success: true,
+      data: {
+        periodo: mesesAtras,
+        fechaInicio: fechaInicio.toISOString().split('T')[0],
+        fechaFin: fechaFin.toISOString().split('T')[0],
+        ventasPorSucursal
+      }
+    })
+  } catch (error) {
+    console.error('❌ Error calculando ventas:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+// ===================================================================
+// ENDPOINTS - ESTRUCTURA Y EXPLORADOR
+// ===================================================================
+
+/**
+ * @swagger
+ * /api/backup/structure:
+ *   get:
+ *     tags:
+ *       - Explorador
+ *     summary: Obtener estructura de carpetas (Demo)
+ *     description: Retorna la estructura jerárquica de carpetas con conteo de archivos
+ *     responses:
+ *       200:
+ *         description: Estructura obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     path:
+ *                       type: string
+ *                       example: '/facturas'
+ *                     folders:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                             example: 'SA'
+ *                           fileCount:
+ *                             type: number
+ *                             example: 350
+ */
+app.get('/api/backup/structure', async (req, res) => {
+  try {
+    console.log('📂 Obteniendo estructura de carpetas...')
+
+    // Obtener conteo por categoría
     const conteoPorCarpeta = {}
-    porCategoria.forEach((item) => {
-      const categoria = item._id
-      const folderName = categoriasMap[categoria] || categoria
-      conteoPorCarpeta[folderName] = (conteoPorCarpeta[folderName] || 0) + item.count
+
+    facturasDB.forEach(f => {
+      const folder = f.categoria_origen
+      conteoPorCarpeta[folder] = (conteoPorCarpeta[folder] || 0) + 1
     })
 
     // Crear estructura de carpetas
-    Object.entries(conteoPorCarpeta).forEach(([folderName, count]) => {
-      folders.push({
-        name: folderName,
-        path: `/facturas/${folderName}`,
-        fileCount: count * 2, // PDF + JSON
-        files: [], // Se llenarán bajo demanda
-        size: 0,
-        sizeFormatted: 'N/A',
-      })
-    })
+    const folders = Object.entries(conteoPorCarpeta).map(([name, count]) => ({
+      name,
+      path: `/facturas/${name}`,
+      fileCount: count * 2, // PDF + JSON
+      files: [],
+      size: 0,
+      sizeFormatted: 'N/A',
+    }))
 
     const structure = {
       path: '/facturas',
       folders,
       totalFiles: folders.reduce((sum, f) => sum + f.fileCount, 0),
       totalSize: 0,
-      totalSizeFormatted: 'N/A',
+      totalSizeFormatted: 'N/A (modo demo)',
     }
-
-    console.log('✅ Estructura obtenida:', structure)
 
     res.json({
       success: true,
@@ -434,73 +488,90 @@ app.get('/api/backup/structure', requireMongoDB, async (req, res) => {
   }
 })
 
-// Endpoint para obtener archivos de una carpeta desde MongoDB
-app.get('/api/backup/folder/:folderName', requireMongoDB, async (req, res) => {
+/**
+ * @swagger
+ * /api/backup/folder/{folderName}:
+ *   get:
+ *     tags:
+ *       - Explorador
+ *     summary: Listar facturas de una carpeta (Demo)
+ *     description: Obtiene todas las facturas de una categoría específica con paginación
+ *     parameters:
+ *       - in: path
+ *         name: folderName
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [SA, SM, SS, gastos, remisiones, notas_de_credito, anuladas]
+ *         description: Nombre de la categoría
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *       - in: query
+ *         name: dateFrom
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: dateTo
+ *         schema:
+ *           type: string
+ *           format: date
+ *     responses:
+ *       200:
+ *         description: Facturas obtenidas exitosamente
+ */
+app.get('/api/backup/folder/:folderName', async (req, res) => {
   try {
     const { folderName } = req.params
     const { dateFrom, dateTo, limit = '100', page = '1' } = req.query
-    console.log(
-      `📁 Solicitando archivos de carpeta: ${folderName}, página: ${page}, límite: ${limit}`,
-    )
+
+    console.log(`📁 Obteniendo facturas de carpeta: ${folderName}, página: ${page}`)
 
     const limitNum = parseInt(limit) || 100
     const pageNum = parseInt(page) || 1
     const skip = (pageNum - 1) * limitNum
 
-    const query = {}
+    // Filtrar por categoría
+    let facturasFiltradas = facturasDB.filter(f => f.categoria_origen === folderName)
 
-    const folderToCategorias = {
-      SA: ['SA', 'H1'],
-      SM: ['SM', 'H2'],
-      SS: ['SS', 'H4'],
-      gastos: ['gastos'],
-      remisiones: ['remisiones'],
-      notas_de_credito: ['notas_de_credito'],
-      anuladas: ['anuladas'],
-    }
-
-    const categorias = folderToCategorias[folderName]
-    if (categorias) {
-      query['categoria_origen'] = { $in: categorias }
-    } else {
-      query['categoria_origen'] = folderName
-    }
-
+    // Filtrar por fechas si se proporcionan
     if (dateFrom || dateTo) {
-      query['identificacion.fecEmi'] = {}
-      if (dateFrom) query['identificacion.fecEmi'].$gte = dateFrom
-      if (dateTo) query['identificacion.fecEmi'].$lte = dateTo
+      facturasFiltradas = facturasFiltradas.filter(f => {
+        const fecEmi = f.identificacion?.fecEmi
+        if (!fecEmi) return false
+
+        if (dateFrom && fecEmi < dateFrom) return false
+        if (dateTo && fecEmi > dateTo) return false
+
+        return true
+      })
     }
 
-    const totalFacturas = await Factura.countDocuments(query)
+    const totalFacturas = facturasFiltradas.length
     const totalFiles = totalFacturas * 2
     const totalPages = Math.ceil(totalFacturas / limitNum)
 
-    const facturas = await Factura.find(query)
-      .select(
-        'identificacion.codigoGeneracion identificacion.fecEmi receptor.nombre nombre_archivo_pdf ruta_pdf tiene_respaldo_pdf categoria_origen',
-      )
-      .sort({ 'identificacion.fecEmi': -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .lean()
+    // Paginar
+    const facturasPaginadas = facturasFiltradas.slice(skip, skip + limitNum)
 
+    // Convertir a formato de archivos
     const files = []
+    facturasPaginadas.forEach(factura => {
+      const codigoGen = factura.identificacion?.codigoGeneracion || 'unknown'
+      const fecEmi = factura.identificacion?.fecEmi
 
-    facturas.forEach((factura) => {
-      const baseName =
-        factura.nombre_archivo_pdf || factura.identificacion?.codigoGeneracion || 'unknown'
-      const cleanBaseName = baseName.replace(/\.pdf$/i, '')
-      const emissionDate = factura.identificacion?.fecEmi
-      const codigoGeneracion = factura.identificacion?.codigoGeneracion
-      const pdfPath = factura.ruta_pdf
-        ? factura.ruta_pdf.replace(/\\/g, '/')
-        : `${folderName}/${cleanBaseName}.pdf`
-      const jsonPath = pdfPath.replace(/\.pdf$/i, '.json')
-
+      // Archivo JSON
       files.push({
-        name: `${cleanBaseName}.json`,
-        path: jsonPath,
+        name: `${codigoGen}.json`,
+        path: `${folderName}/${codigoGen}.json`,
         size: 5000,
         sizeFormatted: '5 KB',
         type: 'json',
@@ -508,14 +579,15 @@ app.get('/api/backup/folder/:folderName', requireMongoDB, async (req, res) => {
         isDirectory: false,
         modifiedDate: new Date().toISOString(),
         createdDate: new Date().toISOString(),
-        emissionDate: emissionDate || null,
-        codigoGeneracion: codigoGeneracion || null,
+        emissionDate: fecEmi || null,
+        codigoGeneracion: codigoGen,
       })
 
+      // Archivo PDF (si existe)
       if (factura.tiene_respaldo_pdf) {
         files.push({
-          name: `${cleanBaseName}.pdf`,
-          path: pdfPath,
+          name: `${codigoGen}.pdf`,
+          path: `${folderName}/${codigoGen}.pdf`,
           size: 50000,
           sizeFormatted: '50 KB',
           type: 'pdf',
@@ -523,8 +595,8 @@ app.get('/api/backup/folder/:folderName', requireMongoDB, async (req, res) => {
           isDirectory: false,
           modifiedDate: new Date().toISOString(),
           createdDate: new Date().toISOString(),
-          emissionDate: emissionDate || null,
-          codigoGeneracion: codigoGeneracion || null,
+          emissionDate: fecEmi || null,
+          codigoGeneracion: codigoGen,
         })
       }
     })
@@ -558,294 +630,30 @@ app.get('/api/backup/folder/:folderName', requireMongoDB, async (req, res) => {
   }
 })
 
-// Endpoint universal para abrir cualquier archivo
-app.post('/api/backup/open-file', async (req, res) => {
-  try {
-    const { filePath } = req.body
+// ===================================================================
+// ENDPOINTS - BÚSQUEDA
+// ===================================================================
 
-    if (!filePath) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se proporciono la ruta del archivo',
-      })
-    }
-
-    // Verificar que el archivo existe
-    await fs.access(filePath)
-
-    // Obtener extension del archivo
-    const ext = path.extname(filePath).toLowerCase()
-
-    // Leer el archivo
-    const fileBuffer = await fs.readFile(filePath)
-    const fileName = path.basename(filePath)
-
-    // Determinar el Content-Type segun la extension
-    const contentTypes = {
-      '.pdf': 'application/pdf',
-      '.json': 'application/json',
-      '.xml': 'application/xml',
-      '.txt': 'text/plain',
-      '.html': 'text/html',
-      '.css': 'text/css',
-      '.js': 'application/javascript',
-    }
-
-    const contentType = contentTypes[ext] || 'application/octet-stream'
-
-    res.setHeader('Content-Type', contentType)
-    res.setHeader('Content-Disposition', `inline; filename="${fileName}"`)
-    res.send(fileBuffer)
-  } catch (error) {
-    console.error('Error opening file:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para abrir PDF en el navegador (mantener por compatibilidad)
-app.post('/api/backup/open-pdf', async (req, res) => {
-  try {
-    const { filePath } = req.body
-
-    if (!filePath) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se proporcionó la ruta del archivo',
-      })
-    }
-
-    // Verificar que el archivo existe
-    await fs.access(filePath)
-
-    // Leer el archivo y enviarlo como respuesta
-    const fileBuffer = await fs.readFile(filePath)
-
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`)
-    res.send(fileBuffer)
-  } catch (error) {
-    console.error('Error opening PDF:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para abrir JSON en bloc de notas
-app.post('/api/backup/open-notepad', async (req, res) => {
-  try {
-    const { filePath } = req.body
-
-    if (!filePath) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se proporcionó la ruta del archivo',
-      })
-    }
-
-    // Verificar que el archivo existe
-    await fs.access(filePath)
-
-    // En Windows, abrir con notepad
-    const { exec } = await import('child_process')
-    exec(`notepad "${filePath}"`, (error) => {
-      if (error) {
-        console.error('Error opening notepad:', error)
-      }
-    })
-
-    res.json({
-      success: true,
-      message: 'Archivo abierto en Bloc de Notas',
-    })
-  } catch (error) {
-    console.error('Error opening file in notepad:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para descargar carpetas completas en ZIP (usando MongoDB)
-app.post('/api/backup/download-folders', async (req, res) => {
-  try {
-    const { folders } = req.body
-
-    if (!folders || !Array.isArray(folders) || folders.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se proporcionaron carpetas para empaquetar',
-      })
-    }
-
-    console.log(`📦 Generando ZIP para carpetas: ${folders.join(', ')}`)
-
-    // Configurar el archivo ZIP
-    const archive = archiver('zip', {
-      zlib: { level: 9 }, // Nivel máximo de compresión
-    })
-
-    // Configurar headers
-    res.setHeader('Content-Type', 'application/zip')
-    res.setHeader('Content-Disposition', `attachment; filename="backup-folders-${Date.now()}.zip"`)
-
-    // Pipe del archivo al response
-    archive.pipe(res)
-
-    // Mapear nombres de carpetas a categorías MongoDB
-    const folderToCategorias = {
-      SA: ['SA', 'H1'],
-      SM: ['SM', 'H2'],
-      SS: ['SS', 'H4'],
-      gastos: ['gastos'],
-      remisiones: ['remisiones'],
-      notas_de_credito: ['notas_de_credito'],
-      anuladas: ['anuladas'],
-    }
-
-    // Procesar cada carpeta
-    for (const folderName of folders) {
-      const categorias = folderToCategorias[folderName] || [folderName]
-
-      console.log(`📁 Procesando carpeta: ${folderName} (categorías: ${categorias.join(', ')})`)
-
-      // Buscar facturas de esta categoría en MongoDB
-      const facturas = await Factura.find({
-        categoria_origen: { $in: categorias },
-      })
-        .select('identificacion.codigoGeneracion nombre_archivo_pdf ruta_pdf tiene_respaldo_pdf')
-        .lean()
-
-      console.log(`✅ ${facturas.length} facturas encontradas para ${folderName}`)
-
-      // Agregar cada factura al ZIP
-      for (const factura of facturas) {
-        const baseName =
-          factura.nombre_archivo_pdf?.replace('.pdf', '') ||
-          factura.identificacion?.codigoGeneracion ||
-          'unknown'
-
-        // Agregar JSON (desde MongoDB)
-        const jsonContent = JSON.stringify(factura, null, 2)
-        archive.append(jsonContent, { name: `${folderName}/${baseName}.json` })
-
-        // Agregar PDF si existe físicamente
-        if (factura.tiene_respaldo_pdf && factura.ruta_pdf) {
-          const pdfPath = path.join(BACKUP_PATH, factura.ruta_pdf)
-          try {
-            await fs.access(pdfPath)
-            archive.file(pdfPath, { name: `${folderName}/${path.basename(pdfPath)}` })
-          } catch (err) {
-            console.warn(`⚠️  PDF no encontrado: ${pdfPath}`)
-          }
-        }
-      }
-    }
-
-    console.log('📦 Finalizando ZIP...')
-    // Finalizar el archivo
-    await archive.finalize()
-    console.log('✅ ZIP generado exitosamente')
-  } catch (error) {
-    console.error('❌ Error creating ZIP:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para descargar archivos específicos en ZIP (usando MongoDB)
-app.post('/api/backup/download-files', async (req, res) => {
-  try {
-    const { files, folderName, codigosGeneracion } = req.body
-
-    if ((!files || files.length === 0) && (!codigosGeneracion || codigosGeneracion.length === 0)) {
-      return res.status(400).json({
-        success: false,
-        error: 'No se proporcionaron archivos para empaquetar',
-      })
-    }
-
-    console.log(`📦 Generando ZIP de archivos para ${folderName}`)
-
-    // Configurar el archivo ZIP
-    const archive = archiver('zip', {
-      zlib: { level: 9 },
-    })
-
-    // Configurar headers
-    res.setHeader('Content-Type', 'application/zip')
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${folderName || 'files'}-${Date.now()}.zip"`,
-    )
-
-    // Pipe del archivo al response
-    archive.pipe(res)
-
-    // Si se proporcionaron códigos de generación, buscar en MongoDB
-    if (codigosGeneracion && codigosGeneracion.length > 0) {
-      console.log(
-        `🔍 Buscando facturas por códigos de generación: ${codigosGeneracion.length} archivos`,
-      )
-
-      for (const codigo of codigosGeneracion) {
-        const factura = await Factura.findOne({
-          'identificacion.codigoGeneracion': codigo,
-        }).lean()
-
-        if (factura) {
-          const baseName = factura.nombre_archivo_pdf?.replace('.pdf', '') || codigo
-
-          // Agregar JSON
-          const jsonContent = JSON.stringify(factura, null, 2)
-          archive.append(jsonContent, { name: `${baseName}.json` })
-
-          // Agregar PDF si existe
-          if (factura.tiene_respaldo_pdf && factura.ruta_pdf) {
-            const pdfPath = path.join(BACKUP_PATH, factura.ruta_pdf)
-            try {
-              await fs.access(pdfPath)
-              archive.file(pdfPath, { name: `${baseName}.pdf` })
-            } catch (err) {
-              console.warn(`⚠️  PDF no encontrado: ${pdfPath}`)
-            }
-          }
-        }
-      }
-    } else {
-      // Método legacy: usar paths de archivos directos
-      console.log(`📁 Usando paths directos: ${files.length} archivos`)
-      for (const filePath of files) {
-        try {
-          await fs.access(filePath)
-          const fileName = path.basename(filePath)
-          archive.file(filePath, { name: fileName })
-        } catch (error) {
-          console.error(`Error accessing file ${filePath}:`, error)
-        }
-      }
-    }
-
-    console.log('📦 Finalizando ZIP...')
-    // Finalizar el archivo
-    await archive.finalize()
-    console.log('✅ ZIP generado exitosamente')
-  } catch (error) {
-    console.error('❌ Error creating ZIP:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
+/**
+ * @swagger
+ * /api/backup/search:
+ *   get:
+ *     tags:
+ *       - Explorador
+ *     summary: Buscar facturas (Demo)
+ *     description: Búsqueda global por código DTE o número de control
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Término de búsqueda
+ *         example: 'A1B2C3D4'
+ *     responses:
+ *       200:
+ *         description: Resultados de búsqueda
+ */
 app.get('/api/backup/search', async (req, res) => {
   try {
     const { query } = req.query
@@ -860,37 +668,30 @@ app.get('/api/backup/search', async (req, res) => {
       })
     }
 
-    const searchTerm = query.trim()
+    const searchTerm = query.trim().toLowerCase()
+    console.log(`🔍 Buscando: "${searchTerm}"`)
 
-    const facturas = await Factura.find({
-      $or: [
-        { 'identificacion.codigoGeneracion': { $regex: searchTerm, $options: 'i' } },
-        { nombre_archivo_pdf: { $regex: searchTerm, $options: 'i' } },
-        { 'identificacion.numeroControl': { $regex: searchTerm, $options: 'i' } },
-      ],
-    })
-      .select(
-        'identificacion.codigoGeneracion identificacion.fecEmi receptor.nombre nombre_archivo_pdf ruta_pdf tiene_respaldo_pdf categoria_origen',
-      )
-      .limit(100)
-      .lean()
+    // Buscar en facturas
+    const facturasEncontradas = facturasDB.filter(f => {
+      const codigoGen = (f.identificacion?.codigoGeneracion || '').toLowerCase()
+      const nombrePdf = (f.nombre_archivo_pdf || '').toLowerCase()
+      const numeroControl = (f.identificacion?.numeroControl || '').toLowerCase()
 
+      return codigoGen.includes(searchTerm) ||
+             nombrePdf.includes(searchTerm) ||
+             numeroControl.includes(searchTerm)
+    }).slice(0, 100) // Limitar a 100 resultados
+
+    // Convertir a formato de archivos
     const files = []
-
-    facturas.forEach((factura) => {
-      const baseName =
-        factura.nombre_archivo_pdf || factura.identificacion?.codigoGeneracion || 'unknown'
-      const cleanBaseName = baseName.replace(/\.pdf$/i, '')
-      const emissionDate = factura.identificacion?.fecEmi
-      const codigoGeneracion = factura.identificacion?.codigoGeneracion
-      const pdfPath = factura.ruta_pdf
-        ? factura.ruta_pdf.replace(/\\/g, '/')
-        : `${factura.categoria_origen}/${cleanBaseName}.pdf`
-      const jsonPath = pdfPath.replace(/\.pdf$/i, '.json')
+    facturasEncontradas.forEach(factura => {
+      const codigoGen = factura.identificacion?.codigoGeneracion || 'unknown'
+      const fecEmi = factura.identificacion?.fecEmi
+      const categoria = factura.categoria_origen
 
       files.push({
-        name: `${cleanBaseName}.json`,
-        path: jsonPath,
+        name: `${codigoGen}.json`,
+        path: `${categoria}/${codigoGen}.json`,
         size: 5000,
         sizeFormatted: '5 KB',
         type: 'json',
@@ -898,14 +699,14 @@ app.get('/api/backup/search', async (req, res) => {
         isDirectory: false,
         modifiedDate: new Date().toISOString(),
         createdDate: new Date().toISOString(),
-        emissionDate: emissionDate || null,
-        codigoGeneracion: codigoGeneracion || null,
+        emissionDate: fecEmi || null,
+        codigoGeneracion: codigoGen,
       })
 
       if (factura.tiene_respaldo_pdf) {
         files.push({
-          name: `${cleanBaseName}.pdf`,
-          path: pdfPath,
+          name: `${codigoGen}.pdf`,
+          path: `${categoria}/${codigoGen}.pdf`,
           size: 50000,
           sizeFormatted: '50 KB',
           type: 'pdf',
@@ -913,8 +714,8 @@ app.get('/api/backup/search', async (req, res) => {
           isDirectory: false,
           modifiedDate: new Date().toISOString(),
           createdDate: new Date().toISOString(),
-          emissionDate: emissionDate || null,
-          codigoGeneracion: codigoGeneracion || null,
+          emissionDate: fecEmi || null,
+          codigoGeneracion: codigoGen,
         })
       }
     })
@@ -936,805 +737,64 @@ app.get('/api/backup/search', async (req, res) => {
   }
 })
 
-// ========== ENDPOINT ANTIGUO DESHABILITADO ==========
-// Endpoint para obtener clientes con anuladas
-// Endpoint para obtener clientes (con caché)
-/* DESHABILITADO - Ahora se usa MongoDB
+// ===================================================================
+// ENDPOINTS - CLIENTES
+// ===================================================================
+
+/**
+ * @swagger
+ * /api/clientes:
+ *   get:
+ *     tags:
+ *       - Clientes
+ *     summary: Listar todos los clientes (Demo)
+ *     description: Obtiene listado de clientes con contador de facturas anuladas
+ *     responses:
+ *       200:
+ *         description: Clientes obtenidos exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       nombre:
+ *                         type: string
+ *                         example: 'CLIENTE EJEMPLO S.A. DE C.V.'
+ *                       anuladas:
+ *                         type: number
+ *                         example: 3
+ */
 app.get('/api/clientes', async (req, res) => {
   try {
-    // Ruta del archivo de clientes
-    const clientesPath =
-      NODE_ENV === 'development'
-        ? 'J:/Henri/Clientes/lista_clientes.json'
-        : 'C:/zeta2/Henri/Clientes/lista_clientes.json'
-
-    // Leer archivo de clientes
-    const clientesData = await fs.readFile(clientesPath, 'utf-8')
-    const clientesJson = JSON.parse(clientesData)
-
-    // Obtener lista de clientes
-    const clientes = clientesJson.clientes || []
+    console.log('👥 Cargando clientes con facturas anuladas...')
 
     // Contar anuladas por cliente
-    const clientesConAnuladas = []
+    const anuladasPorCliente = {}
 
-    // Cargar datos de facturas anuladas
-    const anuladasPath = path.join(BACKUP_PATH, 'anuladas')
-
-    try {
-      await fs.access(anuladasPath)
-      const anuladasFiles = await fs.readdir(anuladasPath)
-
-      // Crear mapa de anuladas por cliente
-      const anuladasPorCliente = new Map()
-
-      for (const fileName of anuladasFiles) {
-        if (fileName.endsWith('.json')) {
-          try {
-            const filePath = path.join(anuladasPath, fileName)
-            const fileContent = await fs.readFile(filePath, 'utf-8')
-            const jsonData = JSON.parse(fileContent)
-
-            // Obtener nombre del receptor
-            const nombreCliente = jsonData.receptor?.nombre
-
-            if (nombreCliente) {
-              const count = anuladasPorCliente.get(nombreCliente) || 0
-              anuladasPorCliente.set(nombreCliente, count + 1)
-            }
-          } catch (err) {
-            // Ignorar archivos con errores
-            console.error(`Error leyendo archivo ${fileName}:`, err.message)
-          }
+    facturasDB
+      .filter(f => f.categoria_origen === 'anuladas')
+      .forEach(f => {
+        const nombre = f.receptor?.nombre
+        if (nombre) {
+          anuladasPorCliente[nombre] = (anuladasPorCliente[nombre] || 0) + 1
         }
-      }
-
-      // Crear lista de clientes con conteo de anuladas
-      for (const cliente of clientes) {
-        clientesConAnuladas.push({
-          nombre: cliente,
-          anuladas: anuladasPorCliente.get(cliente) || 0,
-        })
-      }
-
-      // Ordenar por número de anuladas (descendente)
-      clientesConAnuladas.sort((a, b) => b.anuladas - a.anuladas)
-    } catch (err) {
-      console.warn('No se pudo acceder a la carpeta anuladas:', err.message)
-      // Si no existe la carpeta, solo devolver clientes sin anuladas
-      for (const cliente of clientes) {
-        clientesConAnuladas.push({
-          nombre: cliente,
-          anuladas: 0,
-        })
-      }
-    }
-
-    res.json({
-      success: true,
-      data: clientesConAnuladas,
-    })
-  } catch (err) {
-    console.error('Error loading clientes:', err)
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    })
-  }
-})
-*/
-
-// ========== ENDPOINT ANTIGUO DESHABILITADO ==========
-// Endpoint para obtener clientes con notas de crédito
-/* DESHABILITADO - Ahora se usa MongoDB
-app.get('/api/clientes/notas-credito', async (req, res) => {
-  try {
-    // Ruta del archivo de clientes
-    const clientesPath =
-      NODE_ENV === 'development'
-        ? 'J:/Henri/Clientes/lista_clientes.json'
-        : 'C:/zeta2/Henri/Clientes/lista_clientes.json'
-
-    // Leer archivo de clientes
-    const clientesData = await fs.readFile(clientesPath, 'utf-8')
-    const clientesJson = JSON.parse(clientesData)
-
-    // Obtener lista de clientes
-    const clientes = clientesJson.clientes || []
-
-    // Contar notas de crédito por cliente
-    const clientesConNotasCredito = []
-
-    // Cargar datos de notas de crédito
-    const notasCreditoPath = path.join(BACKUP_PATH, 'notas_de_credito')
-
-    try {
-      await fs.access(notasCreditoPath)
-      const notasCreditoFiles = await fs.readdir(notasCreditoPath)
-
-      // Crear mapa de notas de crédito por cliente
-      const notasCreditoPorCliente = new Map()
-
-      for (const fileName of notasCreditoFiles) {
-        if (fileName.endsWith('.json')) {
-          try {
-            const filePath = path.join(notasCreditoPath, fileName)
-            const fileContent = await fs.readFile(filePath, 'utf-8')
-            const jsonData = JSON.parse(fileContent)
-
-            // Obtener nombre del receptor
-            const nombreCliente = jsonData.receptor?.nombre
-
-            if (nombreCliente) {
-              const count = notasCreditoPorCliente.get(nombreCliente) || 0
-              notasCreditoPorCliente.set(nombreCliente, count + 1)
-            }
-          } catch (err) {
-            // Ignorar archivos con errores
-            console.error(`Error leyendo archivo ${fileName}:`, err.message)
-          }
-        }
-      }
-
-      // Crear lista de clientes con conteo de notas de crédito
-      for (const cliente of clientes) {
-        clientesConNotasCredito.push({
-          nombre: cliente,
-          anuladas: 0,
-          notas_de_credito: notasCreditoPorCliente.get(cliente) || 0,
-        })
-      }
-
-      // Ordenar por número de notas de crédito (descendente)
-      clientesConNotasCredito.sort((a, b) => b.notas_de_credito - a.notas_de_credito)
-    } catch (err) {
-      console.warn('No se pudo acceder a la carpeta notas_de_credito:', err.message)
-      // Si no existe la carpeta, solo devolver clientes sin notas de crédito
-      for (const cliente of clientes) {
-        clientesConNotasCredito.push({
-          nombre: cliente,
-          anuladas: 0,
-          notas_de_credito: 0,
-        })
-      }
-    }
-
-    res.json({
-      success: true,
-      data: clientesConNotasCredito,
-    })
-  } catch (err) {
-    console.error('Error loading clientes notas de credito:', err)
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    })
-  }
-})
-*/
-
-// ========== ENDPOINT ANTIGUO DESHABILITADO ==========
-// Endpoint para obtener notas de crédito de un cliente específico
-/* DESHABILITADO - Ahora se usa MongoDB
-app.get('/api/clientes/:nombreCliente/notas-credito', async (req, res) => {
-  try {
-    const { nombreCliente } = req.params
-    const notasCreditoPath = path.join(BACKUP_PATH, 'notas_de_credito')
-
-    try {
-      await fs.access(notasCreditoPath)
-    } catch (err) {
-      return res.json({
-        success: true,
-        data: {
-          cliente: nombreCliente,
-          facturas: [],
-          count: 0,
-        },
       })
-    }
 
-    const notasCreditoFiles = await fs.readdir(notasCreditoPath)
-    const facturasCliente = []
-
-    for (const fileName of notasCreditoFiles) {
-      if (fileName.endsWith('.json')) {
-        try {
-          const filePath = path.join(notasCreditoPath, fileName)
-          const fileContent = await fs.readFile(filePath, 'utf-8')
-          const jsonData = JSON.parse(fileContent)
-
-          // Verificar si pertenece al cliente
-          const nombreReceptor = jsonData.receptor?.nombre
-
-          if (nombreReceptor === nombreCliente) {
-            // Obtener info del archivo
-            const fileInfo = await getFileInfo(filePath, fileName)
-            if (fileInfo) {
-              fileInfo.emissionDate = jsonData.identificacion?.fecEmi || null
-              fileInfo.numeroDocumento =
-                jsonData.identificacion?.codigoGeneracion || fileName.replace('.json', '')
-              facturasCliente.push(fileInfo)
-
-              // Buscar PDF correspondiente
-              const pdfName = fileName.replace('.json', '.pdf')
-              const pdfPath = path.join(notasCreditoPath, pdfName)
-              try {
-                await fs.access(pdfPath)
-                const pdfInfo = await getFileInfo(pdfPath, pdfName)
-                if (pdfInfo) {
-                  pdfInfo.emissionDate = jsonData.identificacion?.fecEmi || null
-                  pdfInfo.numeroDocumento =
-                    jsonData.identificacion?.codigoGeneracion || pdfName.replace('.pdf', '')
-                  facturasCliente.push(pdfInfo)
-                }
-              } catch (err) {
-                // PDF no existe
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Error procesando archivo ${fileName}:`, err.message)
-        }
-      }
-    }
-
-    // Ordenar por fecha de emisión (más reciente primero)
-    facturasCliente.sort((a, b) => {
-      if (!a.emissionDate) return 1
-      if (!b.emissionDate) return -1
-      return b.emissionDate.localeCompare(a.emissionDate)
-    })
-
-    res.json({
-      success: true,
-      data: {
-        cliente: nombreCliente,
-        facturas: facturasCliente,
-        count: facturasCliente.length,
-      },
-    })
-  } catch (err) {
-    console.error('Error loading notas de credito for cliente:', err)
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    })
-  }
-})
-*/
-
-// ========== ENDPOINT ANTIGUO DESHABILITADO ==========
-// Endpoint para obtener facturas anuladas de un cliente específico
-/* DESHABILITADO - Ahora se usa MongoDB
-app.get('/api/clientes/:nombreCliente/anuladas', async (req, res) => {
-  try {
-    const { nombreCliente } = req.params
-    const anuladasPath = path.join(BACKUP_PATH, 'anuladas')
-
-    try {
-      await fs.access(anuladasPath)
-    } catch (err) {
-      return res.json({
-        success: true,
-        data: {
-          cliente: nombreCliente,
-          facturas: [],
-          count: 0,
-        },
-      })
-    }
-
-    const anuladasFiles = await fs.readdir(anuladasPath)
-    const facturasCliente = []
-
-    for (const fileName of anuladasFiles) {
-      if (fileName.endsWith('.json')) {
-        try {
-          const filePath = path.join(anuladasPath, fileName)
-          const fileContent = await fs.readFile(filePath, 'utf-8')
-          const jsonData = JSON.parse(fileContent)
-
-          // Verificar si pertenece al cliente
-          const nombreReceptor = jsonData.receptor?.nombre
-
-          if (nombreReceptor === nombreCliente) {
-            // Obtener info del archivo
-            const fileInfo = await getFileInfo(filePath, fileName)
-            if (fileInfo) {
-              fileInfo.emissionDate = jsonData.identificacion?.fecEmi || null
-              fileInfo.numeroDocumento =
-                jsonData.identificacion?.codigoGeneracion || fileName.replace('.json', '')
-              facturasCliente.push(fileInfo)
-
-              // Buscar PDF correspondiente
-              const pdfName = fileName.replace('.json', '.pdf')
-              const pdfPath = path.join(anuladasPath, pdfName)
-              try {
-                await fs.access(pdfPath)
-                const pdfInfo = await getFileInfo(pdfPath, pdfName)
-                if (pdfInfo) {
-                  pdfInfo.emissionDate = jsonData.identificacion?.fecEmi || null
-                  pdfInfo.numeroDocumento =
-                    jsonData.identificacion?.codigoGeneracion || pdfName.replace('.pdf', '')
-                  facturasCliente.push(pdfInfo)
-                }
-              } catch (err) {
-                // PDF no existe
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Error procesando archivo ${fileName}:`, err.message)
-        }
-      }
-    }
-
-    // Ordenar por fecha de emisión (más reciente primero)
-    facturasCliente.sort((a, b) => {
-      if (!a.emissionDate) return 1
-      if (!b.emissionDate) return -1
-      return b.emissionDate.localeCompare(a.emissionDate)
-    })
-
-    res.json({
-      success: true,
-      data: {
-        cliente: nombreCliente,
-        facturas: facturasCliente,
-        count: facturasCliente.length,
-      },
-    })
-  } catch (err) {
-    console.error('Error loading anuladas for cliente:', err)
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    })
-  }
-})
-*/
-
-// Endpoint para abrir archivos en el visor del sistema
-app.get('/api/file/open', async (req, res) => {
-  try {
-    const { path: filePath } = req.query
-
-    if (!filePath) {
-      return res.status(400).json({
-        success: false,
-        error: 'Falta el parámetro path',
-      })
-    }
-
-    // Verificar que el archivo existe
-    try {
-      await fs.access(filePath)
-    } catch (err) {
-      return res.status(404).json({
-        success: false,
-        error: 'Archivo no encontrado',
-      })
-    }
-
-    // En Windows, usar start para abrir el archivo con la aplicación predeterminada
-    const { exec } = await import('child_process')
-    const command =
-      process.platform === 'win32' ? `start "" "${filePath}"` : `xdg-open "${filePath}"`
-
-    exec(command, (error) => {
-      if (error) {
-        console.error('Error abriendo archivo:', error)
-        return res.json({
-          success: false,
-          error: 'Error al abrir el archivo: ' + error.message,
-        })
-      }
-    })
-
-    // Responder inmediatamente (no esperar a que se abra)
-    res.json({
-      success: true,
-      message: 'Archivo abierto',
-    })
-  } catch (err) {
-    console.error('Error en /api/file/open:', err)
-    res.status(500).json({
-      success: false,
-      error: err.message,
-    })
-  }
-})
-
-// ============ ENDPOINTS MONGODB ============
-
-// Endpoint para probar la conexión a MongoDB
-app.get('/api/mongodb/test', async (req, res) => {
-  try {
-    const count = await Factura.countDocuments()
-    const sample = await Factura.findOne().lean()
-
-    res.json({
-      success: true,
-      message: 'Conexión a MongoDB exitosa',
-      data: {
-        totalFacturas: count,
-        muestraFactura: sample
-          ? {
-              codigoGeneracion: sample.identificacion?.codigoGeneracion,
-              fecha: sample.identificacion?.fecEmi,
-              cliente: sample.receptor?.nombre,
-              total: sample.resumen?.totalPagar,
-              categoria: sample.categoria_origen,
-              sucursal: sample.sucursal,
-              tienePDF: sample.tiene_respaldo_pdf,
-            }
-          : null,
-      },
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para buscar facturas con filtros
-app.get('/api/mongodb/facturas', async (req, res) => {
-  try {
-    const { fechaDesde, fechaHasta, categoria, cliente, limit = 50 } = req.query
-
-    const query = {}
-
-    if (fechaDesde || fechaHasta) {
-      query['identificacion.fecEmi'] = {}
-      if (fechaDesde) query['identificacion.fecEmi'].$gte = fechaDesde
-      if (fechaHasta) query['identificacion.fecEmi'].$lte = fechaHasta
-    }
-
-    if (categoria) {
-      query['categoria_origen'] = categoria
-    }
-
-    if (cliente) {
-      query['receptor.nombre'] = new RegExp(cliente, 'i') // Búsqueda case-insensitive
-    }
-
-    const facturas = await Factura.find(query)
-      .select(
-        'identificacion.codigoGeneracion identificacion.fecEmi identificacion.numeroControl receptor.nombre resumen.totalPagar categoria_origen sucursal tiene_respaldo_pdf',
-      )
-      .sort({ 'identificacion.fecEmi': -1 })
-      .limit(parseInt(limit))
-      .lean()
-
-    res.json({
-      success: true,
-      data: {
-        facturas,
-        count: facturas.length,
-        filtros: { fechaDesde, fechaHasta, categoria, cliente, limit },
-      },
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para obtener estadísticas desde MongoDB
-app.get('/api/mongodb/stats', async (req, res) => {
-  try {
-    const [total, porCategoria, ultimaFactura] = await Promise.all([
-      Factura.countDocuments(),
-      Factura.aggregate([{ $group: { _id: '$categoria_origen', count: { $sum: 1 } } }]),
-      Factura.findOne().sort({ 'identificacion.fecEmi': -1 }).lean(),
-    ])
-
-    const totalPorCategoria = porCategoria.reduce((acc, item) => {
-      acc[item._id || 'sin_categoria'] = item.count
-      return acc
-    }, {})
-
-    res.json({
-      success: true,
-      data: {
-        totalFacturas: total,
-        porCategoria: totalPorCategoria,
-        ultimaFactura: ultimaFactura
-          ? {
-              fecha: ultimaFactura.identificacion?.fecEmi,
-              cliente: ultimaFactura.receptor?.nombre,
-              codigo: ultimaFactura.identificacion?.codigoGeneracion,
-              categoria: ultimaFactura.categoria_origen,
-            }
-          : null,
-      },
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para buscar facturas de un cliente específico
-app.get('/api/mongodb/clientes/:nombreCliente', async (req, res) => {
-  try {
-    const { nombreCliente } = req.params
-    const { categoria, limit = 100 } = req.query
-
-    const query = {
-      'receptor.nombre': nombreCliente,
-    }
-
-    if (categoria) {
-      query['categoria_origen'] = categoria
-    }
-
-    const facturas = await Factura.find(query)
-      .select(
-        'identificacion.codigoGeneracion identificacion.fecEmi identificacion.numeroControl resumen.totalPagar categoria_origen nombre_archivo_pdf',
-      )
-      .sort({ 'identificacion.fecEmi': -1 })
-      .limit(parseInt(limit))
-      .lean()
-
-    res.json({
-      success: true,
-      data: {
-        cliente: nombreCliente,
-        facturas,
-        count: facturas.length,
-      },
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint para obtener lista de clientes únicos
-app.get('/api/mongodb/clientes', async (req, res) => {
-  try {
-    const clientes = await Factura.distinct('receptor.nombre')
-
-    // Contar facturas por cliente
-    const clientesConConteo = await Promise.all(
-      clientes.slice(0, 100).map(async (cliente) => {
-        const count = await Factura.countDocuments({ 'receptor.nombre': cliente })
-        return { nombre: cliente, facturas: count }
-      }),
-    )
-
-    // Ordenar por cantidad de facturas
-    clientesConConteo.sort((a, b) => b.facturas - a.facturas)
-
-    res.json({
-      success: true,
-      data: {
-        clientes: clientesConConteo,
-        total: clientes.length,
-      },
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// Endpoint de health check
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    message: mongoConnected
-      ? 'Backend funcionando correctamente con MongoDB'
-      : 'Backend funcionando SIN conexión a MongoDB',
-    timestamp: new Date().toISOString(),
-    mongodb: {
-      connected: mongoConnected,
-      database: mongoConnected ? 'facturas-hermaco' : 'N/A',
-      uri: process.env.MONGODB_URI ? 'Configurada' : '❌ NO CONFIGURADA',
-    },
-    environment: {
-      NODE_ENV: process.env.NODE_ENV || 'development',
-      BACKUP_PATH: process.env.BACKUP_PATH || 'default',
-    },
-  })
-})
-
-// Endpoint para verificar si hay cambios recientes (últimos 30 segundos)
-app.get('/api/backup/check-updates', async (req, res) => {
-  try {
-    const { since } = req.query
-    const sinceDate = since ? new Date(since) : new Date(Date.now() - 30000) // Por defecto 30 segundos
-
-    // Contar facturas agregadas/modificadas desde la fecha indicada
-    const recentCount = await Factura.countDocuments({
-      migrado_en: { $gte: sinceDate },
-    })
-
-    // Obtener el último documento insertado
-    const ultimaFactura = await Factura.findOne()
-      .sort({ migrado_en: -1 })
-      .select('migrado_en identificacion.fecEmi')
-      .lean()
-
-    res.json({
-      success: true,
-      hasUpdates: recentCount > 0,
-      recentCount,
-      lastUpdate: ultimaFactura?.migrado_en || null,
-      timestamp: new Date().toISOString(),
-    })
-  } catch (error) {
-    console.error('❌ Error checking updates:', error)
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-
-// ========== ENDPOINT ANTIGUO DESHABILITADO ==========
-// Endpoint para contar archivos directamente en carpeta SA
-/* DESHABILITADO - Ahora se usa MongoDB
-app.get('/api/count-files-sa', async (req, res) => {
-  try {
-    const saPath = path.join(BACKUP_PATH, 'SA')
-    console.log('📊 Contando archivos en SA:', saPath)
-
-    // Verificar que existe la carpeta
-    try {
-      await fs.access(saPath)
-    } catch (err) {
-      return res.json({
-        success: false,
-        error: 'Carpeta SA no encontrada',
-        path: saPath,
-      })
-    }
-
-    // Leer todos los archivos
-    const files = await fs.readdir(saPath)
-
-    let pdfCount = 0
-    let jsonCount = 0
-    let otherCount = 0
-    const sampleFiles = []
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const ext = path.extname(file).toLowerCase()
-
-      if (ext === '.pdf') {
-        pdfCount++
-        if (pdfCount <= 3) sampleFiles.push(file)
-      } else if (ext === '.json') {
-        jsonCount++
-        if (jsonCount <= 3) sampleFiles.push(file)
-      } else {
-        otherCount++
-      }
-    }
-
-    const result = {
-      success: true,
-      carpeta: 'SA (H1)',
-      ruta: saPath,
-      totalArchivos: files.length,
-      conteos: {
-        pdf: pdfCount,
-        json: jsonCount,
-        otros: otherCount,
-      },
-      parejasCompletas: Math.min(pdfCount, jsonCount),
-      muestrasArchivos: sampleFiles,
-    }
-
-    console.log('✅ Resultado conteo SA:', result)
-
-    res.json(result)
-  } catch (error) {
-    console.error('❌ Error contando archivos SA:', error)
-    res.json({
-      success: false,
-      error: error.message,
-      stack: error.stack,
-    })
-  }
-})
-*/
-
-// ========== ENDPOINTS ANTIGUOS DESHABILITADOS ==========
-/* DESHABILITADOS - Ya no se usa caché con MongoDB
-// Endpoint para limpiar caché manualmente
-app.post('/api/cache/clear', (req, res) => {
-  cache = {
-    structure: null,
-    stats: null,
-    lastUpdate: null,
-    isLoading: false,
-  }
-
-  console.log('🗑️ Caché limpiada manualmente')
-
-  res.json({
-    success: true,
-    message: 'Caché limpiada correctamente',
-  })
-})
-
-// Endpoint para forzar recarga de caché
-app.post('/api/cache/reload', async (req, res) => {
-  try {
-    // Limpiar caché
-    cache = {
-      structure: null,
-      stats: null,
-      lastUpdate: null,
-      isLoading: false,
-    }
-
-    // Recargar datos
-    console.log('🔄 Recargando caché...')
-    await loadBackupData()
-
-    res.json({
-      success: true,
-      message: 'Caché recargada correctamente',
-    })
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-    })
-  }
-})
-*/
-
-// ============ ENDPOINTS DE CLIENTES (MongoDB) ============
-
-// Endpoint para obtener clientes con anuladas (usando MongoDB)
-app.get('/api/clientes', async (req, res) => {
-  try {
-    console.log('📊 Cargando clientes con facturas anuladas desde MongoDB...')
-
-    // Agregar por cliente y contar anuladas
-    const clientesConAnuladas = await Factura.aggregate([
-      {
-        $match: {
-          categoria_origen: 'anuladas',
-          'receptor.nombre': { $exists: true, $ne: null, $ne: '' },
-        },
-      },
-      {
-        $group: {
-          _id: '$receptor.nombre',
-          anuladas: { $sum: 1 },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          nombre: '$_id',
-          anuladas: 1,
-        },
-      },
-      {
-        $sort: { anuladas: -1 },
-      },
-    ])
-
-    console.log(`✅ ${clientesConAnuladas.length} clientes con facturas anuladas encontrados`)
+    // Crear array de clientes con anuladas
+    const clientesConAnuladas = Object.entries(anuladasPorCliente)
+      .map(([nombre, anuladas]) => ({
+        nombre,
+        anuladas,
+      }))
+      .sort((a, b) => b.anuladas - a.anuladas)
 
     res.json({
       success: true,
@@ -1749,38 +809,29 @@ app.get('/api/clientes', async (req, res) => {
   }
 })
 
-// Endpoint para obtener clientes con notas de crédito (usando MongoDB)
 app.get('/api/clientes/notas-credito', async (req, res) => {
   try {
-    console.log('📊 Cargando clientes con notas de crédito desde MongoDB...')
+    console.log('👥 Cargando clientes con notas de crédito...')
 
-    // Agregar por cliente y contar notas de crédito
-    const clientesConNotas = await Factura.aggregate([
-      {
-        $match: {
-          categoria_origen: 'notas_de_credito',
-          'receptor.nombre': { $exists: true, $ne: null, $ne: '' },
-        },
-      },
-      {
-        $group: {
-          _id: '$receptor.nombre',
-          notas_de_credito: { $sum: 1 },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          nombre: '$_id',
-          notas_de_credito: 1,
-        },
-      },
-      {
-        $sort: { notas_de_credito: -1 },
-      },
-    ])
+    // Contar notas de crédito por cliente
+    const notasPorCliente = {}
 
-    console.log(`✅ ${clientesConNotas.length} clientes con notas de crédito encontrados`)
+    facturasDB
+      .filter(f => f.categoria_origen === 'notas_de_credito')
+      .forEach(f => {
+        const nombre = f.receptor?.nombre
+        if (nombre) {
+          notasPorCliente[nombre] = (notasPorCliente[nombre] || 0) + 1
+        }
+      })
+
+    // Crear array de clientes con notas
+    const clientesConNotas = Object.entries(notasPorCliente)
+      .map(([nombre, notas_de_credito]) => ({
+        nombre,
+        notas_de_credito,
+      }))
+      .sort((a, b) => b.notas_de_credito - a.notas_de_credito)
 
     res.json({
       success: true,
@@ -1795,63 +846,51 @@ app.get('/api/clientes/notas-credito', async (req, res) => {
   }
 })
 
-// Endpoint para obtener facturas anuladas de un cliente específico (usando MongoDB)
 app.get('/api/clientes/:nombreCliente/anuladas', async (req, res) => {
   try {
     const { nombreCliente } = req.params
-    console.log(`📊 Cargando facturas anuladas del cliente: ${nombreCliente}`)
+    console.log(`👤 Cargando anuladas del cliente: ${nombreCliente}`)
 
     // Buscar facturas anuladas del cliente
-    const facturas = await Factura.find({
-      categoria_origen: 'anuladas',
-      'receptor.nombre': nombreCliente,
-    })
-      .select(
-        'identificacion.codigoGeneracion identificacion.fecEmi identificacion.numeroControl receptor.nombre resumen.totalPagar ruta_pdf nombre_archivo_pdf tiene_respaldo_pdf categoria_origen sucursal',
-      )
-      .sort({ 'identificacion.fecEmi': -1 })
-      .lean()
+    const facturas = facturasDB.filter(f =>
+      f.categoria_origen === 'anuladas' &&
+      f.receptor?.nombre === nombreCliente
+    )
 
-    console.log(`✅ ${facturas.length} facturas anuladas encontradas`)
-
-    // Transformar facturas a formato de archivo para el frontend
+    // Convertir a formato de archivos
     const facturasFormateadas = []
-    for (const factura of facturas) {
-      const baseName =
-        factura.nombre_archivo_pdf?.replace('.pdf', '') ||
-        factura.identificacion?.codigoGeneracion ||
-        'sin-nombre'
+    facturas.forEach(factura => {
+      const codigoGen = factura.identificacion?.codigoGeneracion || 'unknown'
+      const fecEmi = factura.identificacion?.fecEmi
 
-      // JSON siempre existe (está en MongoDB)
       facturasFormateadas.push({
-        name: `${baseName}.json`,
+        name: `${codigoGen}.json`,
         extension: '.json',
         type: 'json',
-        path: factura.ruta_pdf?.replace('.pdf', '.json') || `anuladas/${baseName}.json`,
-        emissionDate: factura.identificacion?.fecEmi || null,
-        numeroDocumento: factura.identificacion?.codigoGeneracion || baseName,
-        size: 0, // No disponible desde MongoDB
-        sizeFormatted: 'N/A',
-        modified: factura.identificacion?.fecEmi || null,
-        codigoGeneracion: factura.identificacion?.codigoGeneracion,
+        path: `anuladas/${codigoGen}.json`,
+        emissionDate: fecEmi || null,
+        numeroDocumento: codigoGen,
+        size: 5000,
+        sizeFormatted: '5 KB',
+        modified: fecEmi || null,
+        codigoGeneracion: codigoGen,
       })
 
-      // PDF solo si existe
       if (factura.tiene_respaldo_pdf) {
         facturasFormateadas.push({
-          name: `${baseName}.pdf`,
+          name: `${codigoGen}.pdf`,
           extension: '.pdf',
           type: 'pdf',
-          path: factura.ruta_pdf || `anuladas/${baseName}.pdf`,
-          emissionDate: factura.identificacion?.fecEmi || null,
-          numeroDocumento: factura.identificacion?.codigoGeneracion || baseName,
-          size: 0,
-          sizeFormatted: 'N/A',
-          modified: factura.identificacion?.fecEmi || null,
-          codigoGeneracion: factura.identificacion?.codigoGeneracion,
+          path: `anuladas/${codigoGen}.pdf`,
+          emissionDate: fecEmi || null,
+          numeroDocumento: codigoGen,
+          size: 50000,
+          sizeFormatted: '50 KB',
+          modified: fecEmi || null,
+          codigoGeneracion: codigoGen,
         })
       }
-    }
+    })
 
     res.json({
       success: true,
@@ -1862,7 +901,7 @@ app.get('/api/clientes/:nombreCliente/anuladas', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('❌ Error en /api/clientes/:nombreCliente/anuladas:', error)
+    console.error('❌ Error:', error)
     res.status(500).json({
       success: false,
       error: error.message,
@@ -1870,63 +909,51 @@ app.get('/api/clientes/:nombreCliente/anuladas', async (req, res) => {
   }
 })
 
-// Endpoint para obtener notas de crédito de un cliente específico (usando MongoDB)
 app.get('/api/clientes/:nombreCliente/notas-credito', async (req, res) => {
   try {
     const { nombreCliente } = req.params
-    console.log(`📊 Cargando notas de crédito del cliente: ${nombreCliente}`)
+    console.log(`👤 Cargando notas de crédito del cliente: ${nombreCliente}`)
 
     // Buscar notas de crédito del cliente
-    const facturas = await Factura.find({
-      categoria_origen: 'notas_de_credito',
-      'receptor.nombre': nombreCliente,
-    })
-      .select(
-        'identificacion.codigoGeneracion identificacion.fecEmi identificacion.numeroControl receptor.nombre resumen.totalPagar ruta_pdf nombre_archivo_pdf tiene_respaldo_pdf categoria_origen sucursal',
-      )
-      .sort({ 'identificacion.fecEmi': -1 })
-      .lean()
+    const facturas = facturasDB.filter(f =>
+      f.categoria_origen === 'notas_de_credito' &&
+      f.receptor?.nombre === nombreCliente
+    )
 
-    console.log(`✅ ${facturas.length} notas de crédito encontradas`)
-
-    // Transformar facturas a formato de archivo para el frontend
+    // Convertir a formato de archivos
     const facturasFormateadas = []
-    for (const factura of facturas) {
-      const baseName =
-        factura.nombre_archivo_pdf?.replace('.pdf', '') ||
-        factura.identificacion?.codigoGeneracion ||
-        'sin-nombre'
+    facturas.forEach(factura => {
+      const codigoGen = factura.identificacion?.codigoGeneracion || 'unknown'
+      const fecEmi = factura.identificacion?.fecEmi
 
-      // JSON siempre existe (está en MongoDB)
       facturasFormateadas.push({
-        name: `${baseName}.json`,
+        name: `${codigoGen}.json`,
         extension: '.json',
         type: 'json',
-        path: factura.ruta_pdf?.replace('.pdf', '.json') || `notas_de_credito/${baseName}.json`,
-        emissionDate: factura.identificacion?.fecEmi || null,
-        numeroDocumento: factura.identificacion?.codigoGeneracion || baseName,
-        size: 0,
-        sizeFormatted: 'N/A',
-        modified: factura.identificacion?.fecEmi || null,
-        codigoGeneracion: factura.identificacion?.codigoGeneracion,
+        path: `notas_de_credito/${codigoGen}.json`,
+        emissionDate: fecEmi || null,
+        numeroDocumento: codigoGen,
+        size: 5000,
+        sizeFormatted: '5 KB',
+        modified: fecEmi || null,
+        codigoGeneracion: codigoGen,
       })
 
-      // PDF solo si existe
       if (factura.tiene_respaldo_pdf) {
         facturasFormateadas.push({
-          name: `${baseName}.pdf`,
+          name: `${codigoGen}.pdf`,
           extension: '.pdf',
           type: 'pdf',
-          path: factura.ruta_pdf || `notas_de_credito/${baseName}.pdf`,
-          emissionDate: factura.identificacion?.fecEmi || null,
-          numeroDocumento: factura.identificacion?.codigoGeneracion || baseName,
-          size: 0,
-          sizeFormatted: 'N/A',
-          modified: factura.identificacion?.fecEmi || null,
-          codigoGeneracion: factura.identificacion?.codigoGeneracion,
+          path: `notas_de_credito/${codigoGen}.pdf`,
+          emissionDate: fecEmi || null,
+          numeroDocumento: codigoGen,
+          size: 50000,
+          sizeFormatted: '50 KB',
+          modified: fecEmi || null,
+          codigoGeneracion: codigoGen,
         })
       }
-    }
+    })
 
     res.json({
       success: true,
@@ -1937,13 +964,17 @@ app.get('/api/clientes/:nombreCliente/notas-credito', async (req, res) => {
       },
     })
   } catch (error) {
-    console.error('❌ Error en /api/clientes/:nombreCliente/notas-credito:', error)
+    console.error('❌ Error:', error)
     res.status(500).json({
       success: false,
       error: error.message,
     })
   }
 })
+
+// ===================================================================
+// ENDPOINTS - ARCHIVOS (JSON/PDF)
+// ===================================================================
 
 app.get('/api/file/content', async (req, res) => {
   try {
@@ -1956,108 +987,231 @@ app.get('/api/file/content', async (req, res) => {
       })
     }
 
-    if (filePath) {
-      const isPdf = filePath.toLowerCase().endsWith('.pdf')
-      const isJson = filePath.toLowerCase().endsWith('.json')
+    let factura
 
-      if (isPdf) {
-        const normalizedPath = filePath.replace(/\\/g, '/')
-        const fullPath = path.join(BACKUP_PATH, normalizedPath)
-
-        try {
-          await fs.access(fullPath)
-          const fileStats = await fs.stat(fullPath)
-          const fileBuffer = await fs.readFile(fullPath)
-
-          res.setHeader('Content-Type', 'application/pdf')
-          res.setHeader('Content-Length', fileStats.size.toString())
-          res.setHeader('Content-Disposition', `inline; filename="${path.basename(fullPath)}"`)
-          res.setHeader('Cache-Control', 'public, max-age=3600')
-          res.setHeader('Accept-Ranges', 'bytes')
-
-          return res.send(fileBuffer)
-        } catch (error) {
-          return res.status(404).json({
-            success: false,
-            error: 'PDF no encontrado en disco',
-          })
-        }
-      } else if (isJson) {
-        let factura
-
-        if (codigoGeneracion) {
-          factura = await Factura.findOne({
-            'identificacion.codigoGeneracion': codigoGeneracion,
-          }).lean()
-        } else {
-          const fileName = path.basename(filePath, '.json')
-          const normalizedPath = filePath.replace(/\\/g, '/').replace(/\.json$/i, '.pdf')
-
-          factura = await Factura.findOne({
-            $or: [
-              { 'identificacion.codigoGeneracion': fileName },
-              { nombre_archivo_pdf: fileName + '.pdf' },
-              { nombre_archivo_pdf: fileName },
-              { ruta_pdf: normalizedPath },
-            ],
-          }).lean()
-        }
-
-        if (!factura) {
-          return res.status(404).json({
-            success: false,
-            error: 'Factura no encontrada en MongoDB',
-          })
-        }
-
-        res.setHeader('Content-Type', 'application/json')
-        return res.json(factura)
-      }
+    // Buscar por código de generación
+    if (codigoGeneracion) {
+      factura = facturasDB.find(f =>
+        f.identificacion?.codigoGeneracion === codigoGeneracion
+      )
+    } else if (filePath) {
+      // Extraer código de generación del path
+      const fileName = filePath.split('/').pop().replace(/\.(pdf|json)$/i, '')
+      factura = facturasDB.find(f =>
+        f.identificacion?.codigoGeneracion === fileName
+      )
     }
 
-    if (codigoGeneracion && !filePath) {
-      const factura = await Factura.findOne({
-        'identificacion.codigoGeneracion': codigoGeneracion,
-      }).lean()
+    if (!factura) {
+      return res.status(404).json({
+        success: false,
+        error: 'Factura no encontrada',
+      })
+    }
 
-      if (!factura) {
+    // Si pide PDF, verificamos si existe en mock-data/pdfs/
+    if (filePath && filePath.toLowerCase().endsWith('.pdf')) {
+      const pdfPath = path.join(__dirname, 'mock-data', 'pdfs', filePath)
+
+      try {
+        await fs.access(pdfPath)
+
+        // El PDF existe, enviarlo
+        res.setHeader('Content-Type', 'application/pdf')
+        res.setHeader('Content-Disposition', `inline; filename="${path.basename(pdfPath)}"`)
+
+        const pdfBuffer = await fs.readFile(pdfPath)
+        return res.send(pdfBuffer)
+
+      } catch {
         return res.status(404).json({
           success: false,
-          error: 'Factura no encontrada en MongoDB',
+          error: 'PDF no disponible para esta factura',
         })
-      }
-
-      if (factura.tiene_respaldo_pdf && factura.ruta_pdf) {
-        const relativePath = factura.ruta_pdf.replace(/\\/g, '/')
-        const pdfPath = path.join(BACKUP_PATH, relativePath)
-
-        try {
-          await fs.access(pdfPath)
-          const fileStats = await fs.stat(pdfPath)
-          const fileBuffer = await fs.readFile(pdfPath)
-
-          res.setHeader('Content-Type', 'application/pdf')
-          res.setHeader('Content-Length', fileStats.size.toString())
-          res.setHeader('Content-Disposition', `inline; filename="${path.basename(pdfPath)}"`)
-          res.setHeader('Cache-Control', 'public, max-age=3600')
-          res.setHeader('Accept-Ranges', 'bytes')
-
-          return res.send(fileBuffer)
-        } catch (error) {
-          return res.status(404).json({
-            success: false,
-            error: 'PDF no encontrado en disco',
-          })
-        }
-      } else {
-        res.setHeader('Content-Type', 'application/json')
-        return res.json(factura)
       }
     }
 
-    return res.status(400).json({
+    // Devolver JSON de la factura
+    res.setHeader('Content-Type', 'application/json')
+    res.json(factura)
+
+  } catch (error) {
+    console.error('❌ Error:', error)
+    res.status(500).json({
       success: false,
-      error: 'Falta información para procesar la solicitud',
+      error: error.message,
+    })
+  }
+})
+
+// ===================================================================
+// ENDPOINTS - DESCARGAS ZIP
+// ===================================================================
+
+/**
+ * @swagger
+ * /api/backup/download-folders:
+ *   post:
+ *     tags:
+ *       - Empaquetador
+ *     summary: Generar archivo ZIP (Demo)
+ *     description: Descarga carpetas completas en formato ZIP
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - folders
+ *             properties:
+ *               folders:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [SA, SM, SS, gastos, remisiones, notas_de_credito, anuladas]
+ *                 description: Lista de carpetas a empaquetar
+ *                 example: ['SA', 'SM']
+ *     responses:
+ *       200:
+ *         description: ZIP generado exitosamente
+ *         content:
+ *           application/zip:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Solicitud inválida
+ */
+app.post('/api/backup/download-folders', async (req, res) => {
+  try {
+    const { folders } = req.body
+
+    if (!folders || !Array.isArray(folders) || folders.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No se proporcionaron carpetas para empaquetar',
+      })
+    }
+
+    console.log(`📦 Generando ZIP para carpetas: ${folders.join(', ')}`)
+
+    // Configurar el archivo ZIP
+    const archive = archiver('zip', {
+      zlib: { level: 9 },
+    })
+
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', `attachment; filename="backup-folders-${Date.now()}.zip"`)
+
+    archive.pipe(res)
+
+    // Agregar facturas de las carpetas seleccionadas
+    folders.forEach(folderName => {
+      const facturasCarpeta = facturasDB.filter(f => f.categoria_origen === folderName)
+
+      facturasCarpeta.forEach(factura => {
+        const codigoGen = factura.identificacion?.codigoGeneracion || 'unknown'
+        const jsonContent = JSON.stringify(factura, null, 2)
+
+        archive.append(jsonContent, { name: `${folderName}/${codigoGen}.json` })
+      })
+    })
+
+    await archive.finalize()
+    console.log('✅ ZIP generado exitosamente')
+
+  } catch (error) {
+    console.error('❌ Error creating ZIP:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+})
+
+app.post('/api/backup/download-files', async (req, res) => {
+  try {
+    const { codigosGeneracion } = req.body
+
+    if (!codigosGeneracion || codigosGeneracion.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No se proporcionaron archivos para empaquetar',
+      })
+    }
+
+    console.log(`📦 Generando ZIP de ${codigosGeneracion.length} archivos`)
+
+    const archive = archiver('zip', {
+      zlib: { level: 9 },
+    })
+
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', `attachment; filename="files-${Date.now()}.zip"`)
+
+    archive.pipe(res)
+
+    // Buscar y agregar facturas
+    codigosGeneracion.forEach(codigo => {
+      const factura = facturasDB.find(f =>
+        f.identificacion?.codigoGeneracion === codigo
+      )
+
+      if (factura) {
+        const jsonContent = JSON.stringify(factura, null, 2)
+        archive.append(jsonContent, { name: `${codigo}.json` })
+      }
+    })
+
+    await archive.finalize()
+    console.log('✅ ZIP generado exitosamente')
+
+  } catch (error) {
+    console.error('❌ Error creating ZIP:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+})
+
+// ===================================================================
+// ENDPOINTS - SALUD Y SISTEMA
+// ===================================================================
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: '🎭 Backend en MODO DEMO - Datos ficticios',
+    timestamp: new Date().toISOString(),
+    mongodb: {
+      connected: false,
+      database: 'N/A - Modo Demo',
+      note: 'Los datos provienen de archivos JSON locales',
+    },
+    mockData: {
+      facturas: facturasDB.length,
+      clientes: clientesDB.length,
+      source: 'server/mock-data/*.json',
+    },
+    environment: {
+      NODE_ENV: NODE_ENV,
+      mode: 'DEMO',
+    },
+  })
+})
+
+app.get('/api/backup/check-updates', async (req, res) => {
+  try {
+    // En modo demo, simular que no hay actualizaciones
+    res.json({
+      success: true,
+      hasUpdates: false,
+      recentCount: 0,
+      lastUpdate: null,
+      timestamp: new Date().toISOString(),
+      note: 'Modo demo - datos estáticos',
     })
   } catch (error) {
     res.status(500).json({
@@ -2067,30 +1221,18 @@ app.get('/api/file/content', async (req, res) => {
   }
 })
 
-// Endpoint adicional para diagnóstico
-app.get('/api/system/info', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      nodeEnv: NODE_ENV,
-      backupPath: BACKUP_PATH,
-      serverDir: __dirname,
-      platform: process.platform,
-      cwd: process.cwd(),
-    },
-  })
-})
+// ===================================================================
+// PRODUCCIÓN - Servir Frontend
+// ===================================================================
 
 if (NODE_ENV === 'production') {
   app.use((req, res) => {
-    // Solo servir index.html si no es una ruta de API
     if (!req.url.startsWith('/api')) {
       const indexPath = path.join(__dirname, '..', 'dist', 'index.html')
-      console.log(`📄 Sirviendo: ${req.url} -> index.html`)
       res.sendFile(indexPath, (err) => {
         if (err) {
           console.error(`❌ Error sirviendo ${req.url}:`, err.message)
-          res.status(500).send('Error al cargar la aplicacion')
+          res.status(500).send('Error al cargar la aplicación')
         }
       })
     } else {
@@ -2099,33 +1241,66 @@ if (NODE_ENV === 'production') {
   })
 }
 
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     tags:
+ *       - Sistema
+ *     summary: Health check del servidor
+ *     description: Verifica el estado del servidor demo
+ *     responses:
+ *       200:
+ *         description: Servidor funcionando
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 status:
+ *                   type: string
+ *                   example: 'healthy'
+ *                 mode:
+ *                   type: string
+ *                   example: 'demo'
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ */
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'healthy',
+    mode: 'demo',
+    timestamp: new Date().toISOString(),
+    totalFacturas: facturasDB.length
+  })
+})
+
+// ===================================================================
+// INICIAR SERVIDOR
+// ===================================================================
+
 app.listen(PORT, HOST, async () => {
-  console.log(`🚀 Server running on http://${HOST}:${PORT}`)
+  console.log(`\n🚀 Vault-DTE Server (MODO DEMO) running on http://${HOST}:${PORT}`)
   console.log(`🌐 Accesible desde: http://localhost:${PORT}`)
   console.log(`🌍 Environment: ${NODE_ENV}`)
-  console.log(`📁 Backup path: ${BACKUP_PATH}`)
+  console.log(`🎭 Modo: DEMO (datos ficticios)\n`)
 
   // Mostrar todas las IPs disponibles
-  console.log('\n📡 Accesible desde las siguientes IPs:')
+  console.log('📡 Accesible desde las siguientes IPs:')
   const nets = networkInterfaces()
   for (const name of Object.keys(nets)) {
     for (const net of nets[name]) {
-      // Solo IPv4 y no loopback
       if (net.family === 'IPv4' && !net.internal) {
         console.log(`   - http://${net.address}:${PORT} (${name})`)
       }
     }
   }
-  console.log('')
 
-  // Verificar si la ruta existe (opcional, ya que ahora usamos MongoDB)
-  try {
-    await fs.access(BACKUP_PATH)
-    console.log('✅ Ruta de backup accesible (para PDFs físicos)')
-  } catch (error) {
-    console.warn('⚠️  ADVERTENCIA: La ruta de backup no existe o no es accesible')
-    console.warn('   Los PDFs no se podrán abrir/descargar')
-  }
-
-  console.log('✅ Servidor listo - Usando MongoDB para consultas')
+  console.log('\n✅ Servidor listo - Usando datos de prueba')
+  console.log('📊 Para regenerar datos: cd server/mock-data && node generator.js\n')
 })
