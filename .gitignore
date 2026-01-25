@@ -54,6 +54,3 @@ docker-compose.yml
 Dockerfile
 .dockerignore
 docker-setup.ps1
-
-# Markdown files
-*.md
