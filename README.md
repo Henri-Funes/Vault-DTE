@@ -13,137 +13,161 @@
 
 ================================================================================
 
-🏦 VAULT-DTE
-════════════════════════════════════════════════════════════════════════════════
+# VAULT-DTE
 
 Plataforma de Inteligencia Fiscal y Gestión de Facturación Electrónica
 
-Vault-DTE es una solución full-stack empresarial diseñada para convertir
-10,000+ facturas electrónicas en datos accionables. Permite buscar, analizar y
-reportar información fiscal en segundos.
+Vault-DTE es una solución full-stack empresarial diseñada para convertir 10,000+ facturas electrónicas en datos accionables. Permite buscar, analizar y reportar información fiscal en segundos.
 
 Desarrollado durante mi pasantía en Hermaco, logrando impacto real en producción.
 
-⚡ IMPACTO Y RESULTADOS (ROI)
-════════════════════════════════════════════════════════════════════════════════
+---
 
-Métrica Antes Con Vault-DTE Mejora
-────────────────────────────────────────────────────────────────────────────
-Búsqueda de Docs 5-10 minutos < 5 segundos ⚡ 90%
-Reportes 2 horas Instantáneo 🚀 100%
-Escalabilidad ~100 registros 10,000+ 📈 100x
-Descargas Manual (1 a 1) Masiva (ZIP) ✅ Auto
+## 📸 CAPTURAS DE PANTALLA
 
-🛠️ STACK TECNOLÓGICO
-════════════════════════════════════════════════════════════════════════════════
+**Dashboard Principal**
+![Dashboard Principal](docs/screenshots/dashboard-main.jpeg)
 
-Área Tecnologías
-────────────────────────────────────────────────────────────────────────────
-Frontend Vue 3, TypeScript, UnoCSS, Pinia (Store), Vite
-Backend Node.js, Express, Archiver (Streaming ZIP)
-Datos Dual: MongoDB (Producción) / JSON Estático (Demo)
-Docs Swagger UI (OpenAPI 3.0)
+**Dashboard Secundario**
+![Dashboard Secundario](docs/screenshots/dashboard-main2.jpeg)
 
-🧠 ARQUITECTURA DUAL: DEMO VS PRODUCCIÓN
-════════════════════════════════════════════════════════════════════════════════
+**Explorador Avanzado**
+![Explorador Avanzado](docs/screenshots/explorador-avanzado.jpeg)
 
-El sistema implementa una arquitectura única para facilitar tanto el desarrollo
-como la demostración en portafolios:
+**Visor de Clientes**
+![Visor de Clientes](docs/screenshots/visor-clientes.jpeg)
 
-MODO PRODUCCIÓN
-───────────────────────────────────────────────────────────────────────────────
-• Conectado a MongoDB
-• Maneja datos reales
-• Agregaciones complejas
-• Seguridad por variables de entorno
+**Descargador Masivo**
+![Descargador Masivo](docs/screenshots/descargador-masivo.jpeg)
 
-MODO DEMO (SANDBOX)
-───────────────────────────────────────────────────────────────────────────────
-• Utiliza Mock Data (JSON)
-• No requiere base de datos
-• Funciona "out-of-the-box" al clonar el repo
-• 100% seguro para mostrar públicamente
+## ⚡ IMPACTO Y RESULTADOS (ROI)
 
-✨ CARACTERÍSTICAS CLAVE
-════════════════════════════════════════════════════════════════════════════════
+| Métrica          | Antes          | Con Vault-DTE | Mejora  |
+| ---------------- | -------------- | ------------- | ------- |
+| Búsqueda de Docs | 5-10 minutos   | < 5 segundos  | ⚡ 90%  |
+| Reportes         | 2 horas        | Instantáneo   | 🚀 100% |
+| Escalabilidad    | ~100 registros | 10,000+       | 📈 100x |
+| Descargas        | Manual (1 a 1) | Masiva (ZIP)  | ✅ Auto |
 
-✓ Búsqueda Instantánea
+---
+
+## 🛠️ STACK TECNOLÓGICO
+
+| Área     | Tecnologías                                       |
+| -------- | ------------------------------------------------- |
+| Frontend | Vue 3, TypeScript, UnoCSS, Pinia (Store), Vite    |
+| Backend  | Node.js, Express, Archiver (Streaming ZIP)        |
+| Datos    | Dual: MongoDB (Producción) / JSON Estático (Demo) |
+| Docs     | Swagger UI (OpenAPI 3.0)                          |
+
+---
+
+## 🧠 ARQUITECTURA DUAL: DEMO VS PRODUCCIÓN
+
+El sistema implementa una arquitectura única para facilitar tanto el desarrollo como la demostración en portafolios:
+
+### MODO PRODUCCIÓN
+
+- Conectado a MongoDB
+- Maneja datos reales
+- Agregaciones complejas
+- Seguridad por variables de entorno
+
+### MODO DEMO (SANDBOX)
+
+- Utiliza Mock Data (JSON)
+- No requiere base de datos
+- Funciona "out-of-the-box" al clonar el repo
+- 100% seguro para mostrar públicamente
+
+---
+
+## ✨ CARACTERÍSTICAS CLAVE
+
+✓ **Búsqueda Instantánea**
 Filtros por código, cliente, fecha o estado optimizados
 
-✓ Dashboard Analytics
+✓ **Dashboard Analytics**
 Estadísticas en tiempo real por sucursal y tipo de documento
 
-✓ Gestor de Descargas
-Empaquetado inteligente de PDFs en ZIP sin saturar la memoria del servidor
-(Implementación con Streams)
+✓ **Gestor de Descargas**
+Empaquetado inteligente de PDFs en ZIP sin saturar la memoria del servidor (Implementación con Streams)
 
-✓ Documentación Viva
+✓ **Documentación Viva**
 API totalmente documentada y comprobable con Swagger
 
-🚀 INSTALACIÓN Y USO
-════════════════════════════════════════════════════════════════════════════════
+---
 
-REQUISITOS PREVIOS
-───────────────────────────────────────────────────────────────────────────────
+## 🚀 INSTALACIÓN Y USO
 
-• Node.js 16+
-• Git
-• MongoDB (opcional - solo para modo Producción)
+### REQUISITOS PREVIOS
 
-PASO 1: CLONAR REPOSITORIO
+- Node.js 16+
+- Git
+- MongoDB (opcional - solo para modo Producción)
 
-$ git clone https://github.com/tu-usuario/vault-dte.git
-$ cd vault-dte
+### PASO 1: CLONAR REPOSITORIO
 
-PASO 2: INSTALAR DEPENDENCIAS
+```bash
+git clone https://github.com/tu-usuario/vault-dte.git
+cd vault-dte
+```
 
-$ npm install
+### PASO 2: INSTALAR DEPENDENCIAS
 
-PASO 3: INICIAR (MODO DEMO POR DEFECTO)
+```bash
+npm install
+```
 
-$ npm run dev:all
+### PASO 3: INICIAR (MODO DEMO POR DEFECTO)
 
-ACCESOS DISPONIBLES
-───────────────────────────────────────────────────────────────────────────────
+```bash
+npm run dev:all
+```
 
-💻 Frontend: http://localhost:5173
-📡 API Backend: http://localhost:3001
-📚 Swagger Docs: http://localhost:3001/api-docs
+### ACCESOS DISPONIBLES
 
-📦 ESTRUCTURA DEL PROYECTO
-════════════════════════════════════════════════════════════════════════════════
+- 💻 **Frontend**: http://localhost:5173
+- 📡 **API Backend**: http://localhost:3001
+- 📚 **Swagger Docs**: http://localhost:3001/api-docs
 
+---
+
+## 📦 ESTRUCTURA DEL PROYECTO
+
+```
 vault-dte/
-├── 📁 server/
-│ ├── mock-data/ Datos sintéticos (Modo Demo)
-│ ├── models/ Esquemas Mongoose (Modo Prod)
-│ ├── index.js Entry point agnóstico
-│ └── index.production.js Versión con MongoDB
+├── server/
+│   ├── mock-data/              Datos sintéticos (Modo Demo)
+│   ├── models/                 Esquemas Mongoose (Modo Prod)
+│   ├── index.js                Entry point agnóstico
+│   └── index.production.js      Versión con MongoDB
 │
-├── 📁 src/
-│ ├── modules/ Arquitectura modular
-│ │ ├── Explorer/ Búsqueda y visualización
-│ │ ├── Statistics/ Dashboard analítico
-│ │ └── Clients/ Gestión de clientes
-│ │
-│ ├── stores/ Estado global con Pinia
-│ ├── App.vue Componente raíz
-│ └── main.js Punto de entrada
+├── src/
+│   ├── modules/                Arquitectura modular
+│   │   ├── Explorer/           Búsqueda y visualización
+│   │   ├── Statistics/         Dashboard analítico
+│   │   └── Clients/            Gestión de clientes
+│   │
+│   ├── stores/                 Estado global con Pinia
+│   ├── App.vue                 Componente raíz
+│   └── main.js                 Punto de entrada
 │
-└── 📁 docs/ Documentación extendida
+└── docs/                       Documentación extendida
+```
 
-👨‍💻 AUTOR
-════════════════════════════════════════════════════════════════════════════════
+---
 
-Henri
+## 👨‍💻 AUTOR
+
+**Henri**  
 Desarrollador Full Stack especializado en Soluciones Empresariales
 
-LinkedIn: www.linkedin.com/in/boris-funes-653159214
-Portfolio: https://github.com/Henri-Funes
+- **LinkedIn**: [www.linkedin.com/in/boris-funes-653159214](https://www.linkedin.com/in/boris-funes-653159214)
+- **Portfolio**: [https://github.com/Henri-Funes](https://github.com/Henri-Funes)
 
-📄 LICENCIA
-════════════════════════════════════════════════════════════════════════════════
+---
+
+## 📄 LICENCIA
 
 MIT License - Libre para uso educativo y profesional
-
-================================================================================
